@@ -8,13 +8,14 @@
     <name>PhpDebugTools</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-    <vendor url="https://www.yourcompany.com">YourCompany</vendor>
+    <vendor url="https://plugins.jetbrains.com/plugin/27886-phpdebugtools">PhpDebugTools</vendor>
 
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
     <description><![CDATA[
-        Enter short description for your plugin here.<br>
-        <em>most HTML tags may be used</em>
+        PhpDebugTools provides a local debug workbench for ThinkPHP projects in PhpStorm, including
+        project detection, runtime installation, PHP/Xdebug diagnostics, and controller or service
+        method debug entry points.
         ]]></description>
 
     <!-- Product and plugin compatibility requirements.

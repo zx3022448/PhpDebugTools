@@ -23,3 +23,12 @@ dependencies {
         bundledPlugin("com.jetbrains.php")
     }
 }
+
+intellijPlatform {
+    pluginVerification {
+        freeArgs.set(listOf("-mute", "ForbiddenPluginIdPrefix", "-offline"))
+        ides {
+            local(intellijPlatform.platformPath.toFile())
+        }
+    }
+}
