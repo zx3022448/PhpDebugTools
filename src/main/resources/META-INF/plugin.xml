@@ -42,8 +42,14 @@
     </extensions>
 
     <actions>
-        <action id="PhpDebugTools.DebugServiceMethodAction"
-                class="com.example.phpdebugtools.actions.DebugServiceMethodAction">
+        <action id="PhpDebugTools.DebugServiceMethod"
+                class="com.example.phpdebugtools.actions.DebugServiceMethodAction"
+                text="调试服务方法">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+        <action id="PhpDebugTools.DebugControllerMethod"
+                class="com.example.phpdebugtools.actions.DebugControllerMethodAction"
+                text="调试控制器方法">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
     </actions>
