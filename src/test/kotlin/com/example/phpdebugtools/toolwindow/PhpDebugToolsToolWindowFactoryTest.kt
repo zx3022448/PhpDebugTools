@@ -6,8 +6,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.file.Files
+import javax.swing.JTabbedPane
 
 class PhpDebugToolsToolWindowFactoryTest {
+    @Test
+    fun buildsExpectedToolWindowTabs() {
+        val tabs = buildToolWindowTabs(PhpDebugToolsToolWindowPanel(JTabbedPane()))
+
+        assertEquals(listOf("概览", "请求调试", "方法直调", "诊断"), tabs.map { it.title })
+        assertEquals(4, tabs.size)
+    }
 
     @Test
     fun buildsOverviewStateForThinkPhpProjectAndInstallsRuntime() {

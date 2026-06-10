@@ -13,6 +13,7 @@ import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.content.ContentFactory
 import java.nio.file.Files
 import java.nio.file.Path
+import javax.swing.JComponent
 
 class PhpDebugToolsToolWindowFactory : ToolWindowFactory {
     override fun shouldBeAvailable(project: Project): Boolean = true
@@ -20,31 +21,41 @@ class PhpDebugToolsToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val tabs = JBTabbedPane()
         val panel = PhpDebugToolsToolWindowPanel(tabs)
-        tabs.addTab(PhpDebugToolsBundle.message("toolwindow.tab.overview"), panel.overviewComponent)
-        tabs.addTab(
-            PhpDebugToolsBundle.message("toolwindow.tab.requestDebug"),
-            createPlaceholderPanel(PhpDebugToolsBundle.message("toolwindow.placeholder.requestDebug")),
-        )
-        tabs.addTab(
-            PhpDebugToolsBundle.message("toolwindow.tab.methodInvoke"),
-            createPlaceholderPanel(PhpDebugToolsBundle.message("toolwindow.placeholder.methodInvoke")),
-        )
-        tabs.addTab(
-            PhpDebugToolsBundle.message("toolwindow.tab.diagnostics"),
-            createPlaceholderPanel(PhpDebugToolsBundle.message("toolwindow.placeholder.diagnostics")),
-        )
+        buildToolWindowTabs(panel).forEach { tab ->
+            tabs.addTab(tab.title, tab.component)
+        }
         project.basePath?.let { projectBasePath ->
             panel.updateOverview(buildOverviewState(Path.of(projectBasePath)))
         }
         val content = ContentFactory.getInstance().createContent(panel, null, false)
         toolWindow.contentManager.addContent(content)
     }
+}
 
-    private fun createPlaceholderPanel(message: String): JBPanel<JBPanel<*>> {
-        return JBPanel<JBPanel<*>>().apply {
-            add(JBLabel(message))
-        }
-    }
+internal data class ToolWindowTabDefinition(
+    val title: String,
+    val component: JComponent,
+)
+
+internal fun buildToolWindowTabs(panel: PhpDebugToolsToolWindowPanel): List<ToolWindowTabDefinition> {
+    return listOf(
+        ToolWindowTabDefinition(
+            title = PhpDebugToolsBundle.message("toolwindow.tab.overview"),
+            component = panel.overviewComponent,
+        ),
+        ToolWindowTabDefinition(
+            title = PhpDebugToolsBundle.message("toolwindow.tab.requestDebug"),
+            component = createPlaceholderPanel(PhpDebugToolsBundle.message("toolwindow.placeholder.requestDebug")),
+        ),
+        ToolWindowTabDefinition(
+            title = PhpDebugToolsBundle.message("toolwindow.tab.methodInvoke"),
+            component = createPlaceholderPanel(PhpDebugToolsBundle.message("toolwindow.placeholder.methodInvoke")),
+        ),
+        ToolWindowTabDefinition(
+            title = PhpDebugToolsBundle.message("toolwindow.tab.diagnostics"),
+            component = createPlaceholderPanel(PhpDebugToolsBundle.message("toolwindow.placeholder.diagnostics")),
+        ),
+    )
 }
 
 internal fun buildOverviewState(
@@ -104,4 +115,10 @@ private fun collectKnownPaths(projectRoot: Path): Set<String> {
         }
     }
     return knownPaths
+}
+
+private fun createPlaceholderPanel(message: String): JBPanel<JBPanel<*>> {
+    return JBPanel<JBPanel<*>>().apply {
+        add(JBLabel(message))
+    }
 }
