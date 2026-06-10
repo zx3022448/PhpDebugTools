@@ -3,7 +3,17 @@
 declare(strict_types=1);
 
 $payloadPath = $argv[1] ?? '';
-$payload = json_decode((string) file_get_contents($payloadPath), true) ?: [];
+$payload = [];
+
+if (is_file($payloadPath) && is_readable($payloadPath)) {
+    $payload = json_decode((string) file_get_contents($payloadPath), true) ?: [];
+}
+
+$GLOBALS['phpDebugToolsPayload'] = [
+    'stage' => 'invoke_controller',
+    'request' => $payload,
+];
+$bootstrapResult = require __DIR__ . '/bootstrap.php';
 
 echo json_encode([
     'status' => 'ok',
@@ -16,4 +26,5 @@ echo json_encode([
         'post' => $payload['post'] ?? [],
         'args' => $payload['args'] ?? [],
     ],
+    'bootstrap' => $bootstrapResult,
 ], JSON_UNESCAPED_UNICODE);
