@@ -8,7 +8,11 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 
-class DebugServiceMethodAction : AnAction("调试服务方法") {
+class DebugServiceMethodAction(
+    private val dialogLauncher: MethodDebugDialogLauncher = MethodDebugDialogLauncher { project, target ->
+        ServiceMethodDialog(project, target).show()
+    },
+) : AnAction("调试服务方法") {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(event: AnActionEvent) {
@@ -31,6 +35,6 @@ class DebugServiceMethodAction : AnAction("调试服务方法") {
             return
         }
 
-        ServiceMethodDialog(event.project ?: return, target).show()
+        dialogLauncher.show(event.project ?: return, target)
     }
 }

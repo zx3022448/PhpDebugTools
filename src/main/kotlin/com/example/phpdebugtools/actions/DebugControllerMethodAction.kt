@@ -8,7 +8,11 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 
-class DebugControllerMethodAction : AnAction("调试控制器方法") {
+class DebugControllerMethodAction(
+    private val dialogLauncher: MethodDebugDialogLauncher = MethodDebugDialogLauncher { project, target ->
+        ControllerMethodDialog(project, target).show()
+    },
+) : AnAction("调试控制器方法") {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(event: AnActionEvent) {
@@ -30,6 +34,6 @@ class DebugControllerMethodAction : AnAction("调试控制器方法") {
         if (target.kind != MethodKind.CONTROLLER) {
             return
         }
-        ControllerMethodDialog(event.project ?: return, target).show()
+        dialogLauncher.show(event.project ?: return, target)
     }
 }
