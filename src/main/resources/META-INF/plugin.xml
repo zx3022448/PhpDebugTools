@@ -21,10 +21,8 @@
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
     <depends>com.intellij.modules.json</depends>
     <depends>com.intellij.modules.lsp</depends>
-    <depends>org.jetbrains.kotlin</depends>
     <depends>JavaScript</depends>
     <depends>org.intellij.plugins.markdown</depends>
-    <depends>com.intellij.java</depends>
     <depends>com.jetbrains.php</depends>
     <depends>com.intellij.database</depends>
 
@@ -36,9 +34,6 @@
         <toolWindow id="PhpDebugTools" stripeTitle="PHP Debug Tools"
                     factoryClass="com.example.phpdebugtools.toolwindow.PhpDebugToolsToolWindowFactory"
                     icon="AllIcons.Toolwindows.ToolWindowPalette"/>
-    </extensions>
-    <extensions defaultExtensionNs="org.jetbrains.kotlin">
-        <supportsKotlinPluginMode supportsK2="true"/>
     </extensions>
 
     <actions>
