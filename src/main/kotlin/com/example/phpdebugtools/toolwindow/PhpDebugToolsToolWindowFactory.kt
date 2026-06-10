@@ -4,6 +4,7 @@ import com.example.phpdebugtools.PhpDebugToolsBundle
 import com.example.phpdebugtools.project.ThinkPhpProjectDetector
 import com.example.phpdebugtools.runtime.RuntimeInstaller
 import com.example.phpdebugtools.runtime.RuntimeInstallOptions
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
@@ -19,6 +20,7 @@ class PhpDebugToolsToolWindowFactory : ToolWindowFactory {
     override fun shouldBeAvailable(project: Project): Boolean = true
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
+        logger.info("Creating PhpDebugTools tool window content for project '${project.name}'")
         val tabs = JBTabbedPane()
         val panel = PhpDebugToolsToolWindowPanel(tabs)
         buildToolWindowTabs(panel).forEach { tab ->
@@ -29,6 +31,10 @@ class PhpDebugToolsToolWindowFactory : ToolWindowFactory {
         }
         val content = ContentFactory.getInstance().createContent(panel, null, false)
         toolWindow.contentManager.addContent(content)
+    }
+
+    private companion object {
+        private val logger = Logger.getInstance(PhpDebugToolsToolWindowFactory::class.java)
     }
 }
 
