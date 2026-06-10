@@ -40,4 +40,11 @@
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <supportsKotlinPluginMode supportsK2="true"/>
     </extensions>
+
+    <actions>
+        <action id="PhpDebugTools.DebugServiceMethodAction"
+                class="com.example.phpdebugtools.actions.DebugServiceMethodAction">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
 </idea-plugin>
