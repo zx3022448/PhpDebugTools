@@ -53,5 +53,5 @@ class EnvironmentDiagnosticService(
         )
     }
 
-    private fun CommandResult.isFailure(): Boolean = exitCode != 0 || stderr.isNotBlank()
+    private fun CommandResult.isFailure(): Boolean = exitCode != 0
 }

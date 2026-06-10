@@ -30,7 +30,19 @@ class PhpDebugToolsToolWindowFactoryTest {
         val state = buildOverviewState(
             projectRoot = projectRoot,
             runtimeInstaller = RuntimeInstaller(
-                templates = listOf(RuntimeTemplate("bootstrap.php", "<?php echo 'ok';")),
+                templates = listOf(
+                    RuntimeTemplate("bootstrap.php", "<?php echo 'ok';"),
+                    RuntimeTemplate(
+                        "runtime-config.json",
+                        """
+                        {
+                          "version": "1",
+                          "frameworkAdapter": "thinkphp5",
+                          "entryFile": "index.php"
+                        }
+                        """.trimIndent(),
+                    ),
+                ),
             ),
         )
 
@@ -38,5 +50,8 @@ class PhpDebugToolsToolWindowFactoryTest {
         assertEquals(".php-debug-tools 已安装", state.runtimeSummary)
         assertEquals("等待诊断执行", state.diagnosticsSummary)
         assertTrue(Files.exists(projectRoot.resolve(".php-debug-tools/bootstrap.php")))
+        val runtimeConfig = Files.readString(projectRoot.resolve(".php-debug-tools/runtime-config.json"))
+        assertTrue(runtimeConfig.contains("\"frameworkAdapter\": \"thinkphp6\""))
+        assertTrue(runtimeConfig.contains("\"entryFile\": \"public/index.php\""))
     }
 }

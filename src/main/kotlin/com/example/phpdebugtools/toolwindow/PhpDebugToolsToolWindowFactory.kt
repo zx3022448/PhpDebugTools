@@ -3,6 +3,7 @@ package com.example.phpdebugtools.toolwindow
 import com.example.phpdebugtools.PhpDebugToolsBundle
 import com.example.phpdebugtools.project.ThinkPhpProjectDetector
 import com.example.phpdebugtools.runtime.RuntimeInstaller
+import com.example.phpdebugtools.runtime.RuntimeInstallOptions
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
@@ -63,7 +64,13 @@ internal fun buildOverviewState(
         PhpDebugToolsBundle.message("overview.project.unknown")
     }
     val runtimeSummary = if (detection.isThinkPhp) {
-        runtimeInstaller.install(projectRoot)
+        runtimeInstaller.install(
+            projectRoot,
+            RuntimeInstallOptions(
+                frameworkAdapter = detection.majorVersion?.let { "thinkphp$it" },
+                entryFile = detection.entryFile,
+            ),
+        )
         PhpDebugToolsBundle.message("runtime.installed")
     } else {
         PhpDebugToolsBundle.message("toolwindow.overview.runtime.placeholder")

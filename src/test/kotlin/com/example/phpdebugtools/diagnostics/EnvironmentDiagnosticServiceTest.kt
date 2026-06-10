@@ -45,6 +45,42 @@ class EnvironmentDiagnosticServiceTest {
     }
 
     @Test
+    fun ignoresStderrWarningsWhenPhpModulesCommandSucceeds() {
+        val runner = object : CommandRunner {
+            override fun run(command: List<String>, workingDirectory: String?): CommandResult {
+                return when (command.joinToString(" ")) {
+                    "php -m" -> CommandResult(0, "Core\nxdebug\njson\n", "PHP Warning: module startup notice")
+                    "php --ini" -> CommandResult(0, "Loaded Configuration File: C:\\php\\php.ini", "")
+                    else -> CommandResult(1, "", "unsupported")
+                }
+            }
+        }
+
+        val findings = EnvironmentDiagnosticService(runner).inspect("php")
+
+        assertTrue(findings.isEmpty())
+    }
+
+    @Test
+    fun keepsIniPathHintWhenIniCommandSucceedsWithWarnings() {
+        val runner = object : CommandRunner {
+            override fun run(command: List<String>, workingDirectory: String?): CommandResult {
+                return when (command.joinToString(" ")) {
+                    "php -m" -> CommandResult(0, "Core\njson\n", "PHP Warning: module startup notice")
+                    "php --ini" -> CommandResult(0, "Loaded Configuration File: C:\\php\\php.ini", "Deprecated: legacy extension")
+                    else -> CommandResult(1, "", "unsupported")
+                }
+            }
+        }
+
+        val findings = EnvironmentDiagnosticService(runner).inspect("php")
+
+        val finding = findings.single()
+        assertTrue(finding.message.contains("未检测到 Xdebug"))
+        assertTrue(finding.hint.contains("C:\\php\\php.ini"))
+    }
+
+    @Test
     fun reportsCommandFailureWithoutMisleadingXdebugHint() {
         val runner = object : CommandRunner {
             override fun run(command: List<String>, workingDirectory: String?): CommandResult {

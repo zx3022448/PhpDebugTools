@@ -9,7 +9,10 @@ import java.nio.file.attribute.BasicFileAttributes
 class RuntimeInstaller(
     private val templates: List<RuntimeTemplate> = bundledTemplates(),
 ) {
-    fun install(projectRoot: Path): RuntimeInstallResult {
+    fun install(
+        projectRoot: Path,
+        options: RuntimeInstallOptions = RuntimeInstallOptions(),
+    ): RuntimeInstallResult {
         val projectRealRoot = projectRoot.toRealPath()
         val runtimeRoot = projectRoot.resolve(RUNTIME_DIR_NAME).normalize()
         if (Files.exists(runtimeRoot, LinkOption.NOFOLLOW_LINKS)) {
@@ -26,7 +29,7 @@ class RuntimeInstaller(
 
             validateExistingPathNodes(runtimeRoot, target.parent)
             Files.createDirectories(target.parent)
-            Files.writeString(target, template.contents, StandardCharsets.UTF_8)
+            Files.writeString(target, renderTemplate(template, options), StandardCharsets.UTF_8)
 
             "$RUNTIME_DIR_NAME/${template.relativePath.replace('\\', '/')}"
         }
@@ -58,6 +61,48 @@ class RuntimeInstaller(
             }.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
 
             return RuntimeTemplate(relativePath = relativePath, contents = contents)
+        }
+    }
+
+    private fun renderTemplate(
+        template: RuntimeTemplate,
+        options: RuntimeInstallOptions,
+    ): String {
+        if (template.relativePath != "runtime-config.json") {
+            return template.contents
+        }
+
+        return template.contents
+            .replaceJsonValue("frameworkAdapter", options.frameworkAdapter)
+            .replaceJsonValue("entryFile", options.entryFile)
+    }
+
+    private fun String.replaceJsonValue(key: String, replacement: String?): String {
+        if (replacement == null) {
+            return this
+        }
+
+        val pattern = Regex("""("$key"\s*:\s*")([^"]*)(")""")
+        require(pattern.containsMatchIn(this)) { "Runtime config template is missing JSON key '$key'" }
+        return replace(pattern) { match ->
+            "${match.groupValues[1]}${escapeJsonString(replacement)}${match.groupValues[3]}"
+        }
+    }
+
+    private fun escapeJsonString(value: String): String {
+        return buildString {
+            value.forEach { character ->
+                when (character) {
+                    '\\' -> append("\\\\")
+                    '"' -> append("\\\"")
+                    '\b' -> append("\\b")
+                    '\u000C' -> append("\\f")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    else -> append(character)
+                }
+            }
         }
     }
 
@@ -100,3 +145,8 @@ class RuntimeInstaller(
         }
     }
 }
+
+data class RuntimeInstallOptions(
+    val frameworkAdapter: String? = null,
+    val entryFile: String? = null,
+)

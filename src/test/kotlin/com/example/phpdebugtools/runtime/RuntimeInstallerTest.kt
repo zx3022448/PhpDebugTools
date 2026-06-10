@@ -78,6 +78,130 @@ class RuntimeInstallerTest {
     }
 
     @Test
+    fun rewritesRuntimeConfigWithDetectedFrameworkAdapterAndEntryFile() {
+        val projectRoot = Files.createTempDirectory("php-debug-tools-project")
+        val installer = RuntimeInstaller(
+            templates = listOf(
+                RuntimeTemplate(
+                    "runtime-config.json",
+                    """
+                    {
+                      "version": "1",
+                      "frameworkAdapter": "thinkphp6",
+                      "entryFile": "public/index.php"
+                    }
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        installer.install(
+            projectRoot,
+            RuntimeInstallOptions(
+                frameworkAdapter = "thinkphp5",
+                entryFile = "web/index.php",
+            ),
+        )
+
+        val runtimeConfig = Files.readString(projectRoot.resolve(".php-debug-tools/runtime-config.json"))
+        assertTrue(runtimeConfig.contains("\"frameworkAdapter\": \"thinkphp5\""))
+        assertTrue(runtimeConfig.contains("\"entryFile\": \"web/index.php\""))
+    }
+
+    @Test
+    fun escapesReplacementValuesWhenRewritingRuntimeConfig() {
+        val projectRoot = Files.createTempDirectory("php-debug-tools-project")
+        val installer = RuntimeInstaller(
+            templates = listOf(
+                RuntimeTemplate(
+                    "runtime-config.json",
+                    """
+                    {
+                      "version": "1",
+                      "frameworkAdapter": "thinkphp6",
+                      "entryFile": "public/index.php"
+                    }
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        installer.install(
+            projectRoot,
+            RuntimeInstallOptions(
+                frameworkAdapter = "thinkphp\"5",
+                entryFile = "folder\\index.php",
+            ),
+        )
+
+        val runtimeConfig = Files.readString(projectRoot.resolve(".php-debug-tools/runtime-config.json"))
+        assertTrue(runtimeConfig.contains("\"frameworkAdapter\": \"thinkphp\\\"5\""))
+        assertTrue(runtimeConfig.contains("\"entryFile\": \"folder\\\\index.php\""))
+    }
+
+    @Test
+    fun rejectsMissingRuntimeConfigKeysWhenReplacementIsRequested() {
+        val projectRoot = Files.createTempDirectory("php-debug-tools-project")
+        val installer = RuntimeInstaller(
+            templates = listOf(
+                RuntimeTemplate(
+                    "runtime-config.json",
+                    """
+                    {
+                      "version": "1"
+                    }
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        val error = try {
+            installer.install(
+                projectRoot,
+                RuntimeInstallOptions(frameworkAdapter = "thinkphp5"),
+            )
+            null
+        } catch (exception: IllegalArgumentException) {
+            exception
+        }
+
+        assertTrue(error != null)
+        assertTrue(error!!.message!!.contains("missing JSON key 'frameworkAdapter'"))
+    }
+
+    @Test
+    fun allowsIdempotentRuntimeConfigReplacement() {
+        val projectRoot = Files.createTempDirectory("php-debug-tools-project")
+        val installer = RuntimeInstaller(
+            templates = listOf(
+                RuntimeTemplate(
+                    "runtime-config.json",
+                    """
+                    {
+                      "version": "1",
+                      "frameworkAdapter": "thinkphp6",
+                      "entryFile": "public/index.php"
+                    }
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        val result = installer.install(
+            projectRoot,
+            RuntimeInstallOptions(
+                frameworkAdapter = "thinkphp6",
+                entryFile = "public/index.php",
+            ),
+        )
+
+        assertTrue(result.installedFiles.contains(".php-debug-tools/runtime-config.json"))
+        val runtimeConfig = Files.readString(projectRoot.resolve(".php-debug-tools/runtime-config.json"))
+        assertTrue(runtimeConfig.contains("\"frameworkAdapter\": \"thinkphp6\""))
+        assertTrue(runtimeConfig.contains("\"entryFile\": \"public/index.php\""))
+    }
+
+    @Test
     fun rejectsWritingThroughExistingLinkThatEscapesRuntimeDirectory() {
         val projectRoot = Files.createTempDirectory("php-debug-tools-project")
         val runtimeRoot = projectRoot.resolve(".php-debug-tools")
