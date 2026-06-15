@@ -50,7 +50,6 @@ class RuntimeInstaller(
             template("adapters/thinkphp6.php"),
             template("invoke-service.php"),
             template("invoke-controller.php"),
-            template("debug-web-entry.php"),
             template("runtime-config.json"),
         )
 

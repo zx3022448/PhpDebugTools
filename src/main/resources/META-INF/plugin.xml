@@ -13,9 +13,9 @@
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
     <description><![CDATA[
-        PhpDebugTools provides a local debug workbench for ThinkPHP projects in PhpStorm, including
-        project detection, runtime installation, PHP/Xdebug diagnostics, and controller or service
-        method debug entry points.
+        PhpDebugTools provides a local method invocation workbench for ThinkPHP projects in PhpStorm,
+        including project detection, runtime installation, and controller or service method debug
+        entry points.
         ]]></description>
 
     <!-- Product and plugin compatibility requirements.

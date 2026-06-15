@@ -1,4 +1,5 @@
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 
 plugins {
     id("org.jetbrains.kotlin.jvm")
@@ -12,7 +13,7 @@ dependencies {
 
     // IntelliJ Platform Gradle Plugin Dependencies Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-dependencies-extension.html
     intellijPlatform {
-        phpstorm("2025.3.5")
+        phpstorm("2026.1.3")
         testFramework(TestFrameworkType.Platform)
 
         // Add plugin dependencies for compilation here:
@@ -29,6 +30,7 @@ intellijPlatform {
         freeArgs.set(listOf("-mute", "ForbiddenPluginIdPrefix", "-offline"))
         ides {
             local(intellijPlatform.platformPath.toFile())
+            create(IntelliJPlatformType.PhpStorm, "2026.1.3")
         }
     }
 }

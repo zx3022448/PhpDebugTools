@@ -8,8 +8,6 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
-import com.intellij.ui.components.JBLabel
-import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.content.ContentFactory
 import java.nio.file.Files
@@ -22,12 +20,12 @@ class PhpDebugToolsToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         logger.info("Creating PhpDebugTools tool window content for project '${project.name}'")
         val tabs = JBTabbedPane()
-        val panel = PhpDebugToolsToolWindowPanel(tabs)
+        val panel = PhpDebugToolsToolWindowPanel(tabs, project)
         buildToolWindowTabs(panel).forEach { tab ->
             tabs.addTab(tab.title, tab.component)
         }
         project.basePath?.let { projectBasePath ->
-            panel.updateOverview(buildOverviewState(Path.of(projectBasePath)))
+            panel.updateWorkspace(buildToolWindowWorkspaceState(Path.of(projectBasePath)))
         }
         val content = ContentFactory.getInstance().createContent(panel, null, false)
         toolWindow.contentManager.addContent(content)
@@ -50,17 +48,48 @@ internal fun buildToolWindowTabs(panel: PhpDebugToolsToolWindowPanel): List<Tool
             component = panel.overviewComponent,
         ),
         ToolWindowTabDefinition(
-            title = PhpDebugToolsBundle.message("toolwindow.tab.requestDebug"),
-            component = createPlaceholderPanel(PhpDebugToolsBundle.message("toolwindow.placeholder.requestDebug")),
-        ),
-        ToolWindowTabDefinition(
             title = PhpDebugToolsBundle.message("toolwindow.tab.methodInvoke"),
-            component = createPlaceholderPanel(PhpDebugToolsBundle.message("toolwindow.placeholder.methodInvoke")),
+            component = panel.methodInvokeComponent,
         ),
-        ToolWindowTabDefinition(
-            title = PhpDebugToolsBundle.message("toolwindow.tab.diagnostics"),
-            component = createPlaceholderPanel(PhpDebugToolsBundle.message("toolwindow.placeholder.diagnostics")),
+    )
+}
+
+internal fun buildToolWindowWorkspaceState(
+    projectRoot: Path,
+    runtimeInstaller: RuntimeInstaller = RuntimeInstaller(),
+): ToolWindowWorkspaceState {
+    val detection = ThinkPhpProjectDetector.detect(
+        composerJson = readProjectFile(projectRoot.resolve("composer.json")),
+        installedFrameworkVersion = null,
+        entryFileText = readProjectFile(projectRoot.resolve("public/index.php")),
+        knownPaths = collectKnownPaths(projectRoot),
+    )
+    val runtimeResult = if (detection.isThinkPhp) {
+        runtimeInstaller.install(
+            projectRoot,
+            RuntimeInstallOptions(
+                frameworkAdapter = detection.majorVersion?.let { "thinkphp$it" },
+                entryFile = detection.entryFile,
+            ),
+        )
+    } else {
+        null
+    }
+
+    return ToolWindowWorkspaceState(
+        overview = OverviewViewState(
+            projectSummary = if (detection.isThinkPhp) {
+                PhpDebugToolsBundle.message("overview.project.detected", detection.majorVersion ?: "?")
+            } else {
+                PhpDebugToolsBundle.message("overview.project.unknown")
+            },
+            runtimeSummary = if (runtimeResult != null) {
+                PhpDebugToolsBundle.message("runtime.installed")
+            } else {
+                PhpDebugToolsBundle.message("toolwindow.runtime.skipped")
+            },
         ),
+        methodInvoke = buildMethodInvokeState(detection),
     )
 }
 
@@ -96,7 +125,6 @@ internal fun buildOverviewState(
     return OverviewViewState(
         projectSummary = projectSummary,
         runtimeSummary = runtimeSummary,
-        diagnosticsSummary = PhpDebugToolsBundle.message("toolwindow.overview.diagnostics.placeholder"),
     )
 }
 
@@ -123,8 +151,19 @@ private fun collectKnownPaths(projectRoot: Path): Set<String> {
     return knownPaths
 }
 
-private fun createPlaceholderPanel(message: String): JBPanel<JBPanel<*>> {
-    return JBPanel<JBPanel<*>>().apply {
-        add(JBLabel(message))
-    }
+private fun buildMethodInvokeState(detection: com.example.phpdebugtools.project.ThinkPhpProjectInfo): ToolWindowDetailState {
+    return ToolWindowDetailState(
+        summary = if (detection.isThinkPhp) {
+            PhpDebugToolsBundle.message("toolwindow.methodInvoke.summary.ready")
+        } else {
+            PhpDebugToolsBundle.message("toolwindow.methodInvoke.summary.requiresThinkPhp")
+        },
+        details = listOf(
+            PhpDebugToolsBundle.message("toolwindow.methodInvoke.detail.serviceAction"),
+            PhpDebugToolsBundle.message("toolwindow.methodInvoke.detail.controllerAction"),
+            PhpDebugToolsBundle.message("toolwindow.methodInvoke.detail.serviceArgs"),
+            PhpDebugToolsBundle.message("toolwindow.methodInvoke.detail.controllerArgs"),
+            PhpDebugToolsBundle.message("toolwindow.methodInvoke.detail.runtimeEntries"),
+        ),
+    )
 }

@@ -8,7 +8,12 @@ object CliDebugCommandBuilder {
     private val allowedEntryScripts = setOf(
         "invoke-service.php",
         "invoke-controller.php",
-        "debug-web-entry.php",
+    )
+    private val xdebugCliFlags = listOf(
+        "-dxdebug.mode=debug",
+        "-dxdebug.start_with_request=yes",
+        "-dxdebug.remote_enable=1",
+        "-dxdebug.remote_autostart=1",
     )
 
     fun build(
@@ -27,6 +32,7 @@ object CliDebugCommandBuilder {
 
         return listOf(
             phpExecutable,
+        ) + xdebugCliFlags + listOf(
             entryScriptPath.invariantSeparatorsPathString,
             payloadPath.invariantSeparatorsPathString,
         )

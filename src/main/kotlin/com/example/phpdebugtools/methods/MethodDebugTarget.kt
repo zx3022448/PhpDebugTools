@@ -6,4 +6,5 @@ data class MethodDebugTarget(
     val methodName: String,
     val isStatic: Boolean,
     val parameters: List<MethodParameterSchema>,
+    val controllerRequestSpec: ControllerRequestSpec? = null,
 )

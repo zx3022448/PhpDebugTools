@@ -23,6 +23,70 @@ object RuntimeJson {
         }
     }
 
+    fun controllerPayload(
+        classFqn: String,
+        methodName: String,
+        isStatic: Boolean,
+        requestMethod: String,
+        queryJson: String,
+        headerJson: String,
+        bodyMode: String,
+        bodyJson: String,
+        argsJson: String,
+    ): String {
+        val normalizedRequestMethod = requestMethod.trim().uppercase().ifEmpty { "GET" }
+        val normalizedQuery = queryJson.trim().ifEmpty { "{}" }
+        val normalizedHeader = headerJson.trim().ifEmpty { "{}" }
+        val normalizedBodyMode = bodyMode.trim().ifEmpty { "none" }
+        val normalizedBody = bodyJson.trim().ifEmpty { "{}" }
+        val normalizedArgs = argsJson.trim().ifEmpty { "[]" }
+        require(isAllowedRequestMethod(normalizedRequestMethod)) {
+            "requestMethod must be one of GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS"
+        }
+        require(isValidJsonObject(normalizedQuery)) {
+            "queryJson must be a JSON object"
+        }
+        require(isValidJsonObject(normalizedHeader)) {
+            "headerJson must be a JSON object"
+        }
+        require(isAllowedBodyMode(normalizedBodyMode)) {
+            "bodyMode must be one of none/form-data/x-www-form-urlencoded/json"
+        }
+        require(isValidJsonObject(normalizedBody)) {
+            "bodyJson must be a JSON object"
+        }
+        require(isValidJsonArray(normalizedArgs)) {
+            "argsJson must be a JSON array"
+        }
+
+        return buildString {
+            append("{")
+            append("\"type\":\"controller\",")
+            append("\"class\":\"").append(escape(classFqn)).append("\",")
+            append("\"method\":\"").append(escape(methodName)).append("\",")
+            append("\"static\":").append(isStatic).append(",")
+            append("\"request\":{")
+            append("\"method\":\"").append(escape(normalizedRequestMethod)).append("\",")
+            append("\"query\":").append(normalizedQuery).append(",")
+            append("\"headers\":").append(normalizedHeader).append(",")
+            append("\"body\":{")
+            append("\"mode\":\"").append(escape(normalizedBodyMode)).append("\",")
+            append("\"content\":").append(normalizedBody)
+            append("}")
+            append("},")
+            append("\"args\":").append(normalizedArgs)
+            append("}")
+        }
+    }
+
+    private fun isAllowedRequestMethod(value: String): Boolean {
+        return value in setOf("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS")
+    }
+
+    private fun isAllowedBodyMode(value: String): Boolean {
+        return value in setOf("none", "form-data", "x-www-form-urlencoded", "json")
+    }
+
     private fun isValidJsonArray(value: String): Boolean {
         if (value.length < 2 || value.first() != '[' || value.last() != ']') {
             return false

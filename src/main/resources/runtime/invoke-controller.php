@@ -22,8 +22,7 @@ echo json_encode([
     'request' => [
         'class' => $payload['class'] ?? '',
         'method' => $payload['method'] ?? '',
-        'query' => $payload['query'] ?? [],
-        'post' => $payload['post'] ?? [],
+        'request' => $payload['request'] ?? [],
         'args' => $payload['args'] ?? [],
     ],
     'bootstrap' => $bootstrapResult,
