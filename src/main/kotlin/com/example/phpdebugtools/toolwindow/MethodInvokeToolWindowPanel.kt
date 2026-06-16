@@ -15,7 +15,6 @@ import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.IconLoader
-import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.ThrowableComputable
 import com.intellij.ui.CollectionComboBoxModel
 import com.intellij.ui.SearchTextField
@@ -26,6 +25,7 @@ import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import java.awt.BorderLayout
+import java.awt.CardLayout
 import java.awt.Dimension
 import javax.swing.JButton
 import javax.swing.JComboBox
@@ -59,12 +59,23 @@ class MethodInvokeToolWindowPanel(
         icon = MethodInvokeActionIcons.RELOAD,
     )
     private val resultArea = readOnlyArea()
+    private val bottomCardLayout = CardLayout()
+    private val bottomPanel = JPanel(bottomCardLayout)
+    private val parameterEditArea = JBTextArea().apply {
+        rows = 8
+        lineWrap = true
+        wrapStyleWord = true
+    }
+    private val confirmEditButton = JButton(PhpDebugToolsBundle.message("common.ok"))
+    private val cancelEditButton = JButton(PhpDebugToolsBundle.message("common.cancel"))
     private val formContentPanel by lazy { buildFormContentPanel() }
     private val formScrollPane = JBScrollPane(formContentPanel).apply {
         horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
         border = javax.swing.BorderFactory.createEmptyBorder()
     }
     private var serviceMethodInputPanel: ServiceMethodInputPanel? = null
+    private var editingParameterName: String? = null
+    private var bottomResultSnapshot: String = ""
 
     private var allMethods: List<MethodLookupItem> = emptyList()
 
@@ -74,6 +85,7 @@ class MethodInvokeToolWindowPanel(
         argsArea.rows = 4
         resultArea.rows = 8
         argsEditorHost.add(JBScrollPane(argsArea), BorderLayout.CENTER)
+        buildBottomPanel()
 
         methodComboBox.addActionListener { applySelectedMethodTemplate() }
         searchField.textEditor.document.addDocumentListener(
@@ -85,10 +97,12 @@ class MethodInvokeToolWindowPanel(
         )
         refreshButton.addActionListener { reloadMethods() }
         executeButton.addActionListener { executeSelectedMethod() }
+        confirmEditButton.addActionListener { confirmParameterEdit() }
+        cancelEditButton.addActionListener { cancelParameterEdit() }
 
         add(buildTopPanel(), BorderLayout.NORTH)
         add(formScrollPane, BorderLayout.CENTER)
-        add(JBScrollPane(resultArea), BorderLayout.SOUTH)
+        add(bottomPanel, BorderLayout.SOUTH)
 
         updateGuidance(
             ToolWindowDetailState(
@@ -96,6 +110,7 @@ class MethodInvokeToolWindowPanel(
                 details = listOf(PhpDebugToolsBundle.message("toolwindow.methodInvoke.detail.pending")),
             ),
         )
+        showResultText("")
         setExecutionEnabled(false)
 
         if (project != null) {
@@ -119,7 +134,7 @@ class MethodInvokeToolWindowPanel(
         allMethods = methods
         refreshSearchResults(showPopup = false)
         if (methods.isEmpty()) {
-            resultArea.text = PhpDebugToolsBundle.message("toolwindow.methodInvoke.result.noMethods")
+            showResultText(PhpDebugToolsBundle.message("toolwindow.methodInvoke.result.noMethods"))
         }
     }
 
@@ -194,12 +209,15 @@ class MethodInvokeToolWindowPanel(
                 methodComboBox.showPopup()
             }
         } else {
+            cancelParameterEdit(restoreSnapshot = false)
             parameterArea.text = PhpDebugToolsBundle.message("toolwindow.methodInvoke.parameter.empty")
+            showResultText("")
             setExecutionEnabled(false)
         }
     }
 
     private fun applySelectedMethodTemplate() {
+        cancelParameterEdit(restoreSnapshot = false)
         val selected = methodComboBox.selectedItem as? MethodLookupItem ?: return
         val state = buildMethodInvokeSelectionState(selected)
         parameterArea.text = state.parameterLines.joinToString(separator = "\n")
@@ -207,13 +225,14 @@ class MethodInvokeToolWindowPanel(
         switchArgsEditor(selected)
         requestContextPanel.isVisible = state.showRequestContext
         state.controllerRequest?.let(requestContextPanel::applyState)
-        resultArea.text = PhpDebugToolsBundle.message("toolwindow.methodInvoke.result.ready", state.targetSignature)
+        showResultText(PhpDebugToolsBundle.message("toolwindow.methodInvoke.result.ready", state.targetSignature))
         setExecutionEnabled(true)
     }
 
     private fun switchArgsEditor(selected: MethodLookupItem) {
+        cancelParameterEdit(restoreSnapshot = false)
         serviceMethodInputPanel = if (selected.target.kind == MethodKind.SERVICE && selected.target.parameters.isNotEmpty()) {
-            ServiceMethodInputPanel(selected.target.parameters)
+            ServiceMethodInputPanel(selected.target.parameters, ::startParameterEdit)
         } else {
             null
         }
@@ -227,7 +246,57 @@ class MethodInvokeToolWindowPanel(
         argsEditorHost.repaint()
     }
 
+    private fun buildBottomPanel() {
+        bottomPanel.add(JBScrollPane(resultArea), BottomPanelCard.RESULT)
+        bottomPanel.add(
+            JPanel(BorderLayout()).apply {
+                add(JBLabel(PhpDebugToolsBundle.message("toolwindow.methodInvoke.serviceArg.editorTitle")), BorderLayout.NORTH)
+                add(JBScrollPane(parameterEditArea), BorderLayout.CENTER)
+                add(
+                    JPanel().apply {
+                        add(confirmEditButton)
+                        add(cancelEditButton)
+                    },
+                    BorderLayout.SOUTH,
+                )
+            },
+            BottomPanelCard.EDITOR,
+        )
+    }
+
+    private fun startParameterEdit(name: String, value: String) {
+        editingParameterName = name
+        bottomResultSnapshot = resultArea.text
+        parameterEditArea.text = serviceMethodInputPanel?.parameterValue(name) ?: value
+        parameterEditArea.caretPosition = 0
+        bottomCardLayout.show(bottomPanel, BottomPanelCard.EDITOR)
+    }
+
+    private fun confirmParameterEdit() {
+        val parameterName = editingParameterName ?: return
+        serviceMethodInputPanel?.setParameterValue(parameterName, parameterEditArea.text)
+        cancelParameterEdit(restoreSnapshot = true)
+    }
+
+    private fun cancelParameterEdit(restoreSnapshot: Boolean = true) {
+        editingParameterName = null
+        parameterEditArea.text = ""
+        bottomCardLayout.show(bottomPanel, BottomPanelCard.RESULT)
+        if (restoreSnapshot) {
+            resultArea.text = bottomResultSnapshot
+            resultArea.caretPosition = 0
+        }
+    }
+
+    private fun showResultText(text: String) {
+        resultArea.text = text
+        resultArea.caretPosition = 0
+        bottomResultSnapshot = text
+        bottomCardLayout.show(bottomPanel, BottomPanelCard.RESULT)
+    }
+
     private fun executeSelectedMethod() {
+        cancelParameterEdit(restoreSnapshot = false)
         val currentProject = project
         val selected = methodComboBox.selectedItem as? MethodLookupItem
         if (currentProject == null || selected == null) {
@@ -245,7 +314,7 @@ class MethodInvokeToolWindowPanel(
         }
 
         setExecutionEnabled(false)
-        resultArea.text = PhpDebugToolsBundle.message("toolwindow.methodInvoke.result.running")
+        showResultText(PhpDebugToolsBundle.message("toolwindow.methodInvoke.result.running"))
         ApplicationManager.getApplication().executeOnPooledThread {
             val requestInput = requestContextPanel.buildRequestInput()
             val result = runCatching {
@@ -269,21 +338,25 @@ class MethodInvokeToolWindowPanel(
                 result.onSuccess { execution ->
                     currentProject.service<com.example.phpdebugtools.persistence.RecentDebugStore>()
                         .rememberMethod(selected.targetSignature)
-                    resultArea.text = buildString {
-                        appendLine("status: ${execution.status}")
-                        appendLine("stage: ${execution.stage}")
-                        if (execution.message.isNotBlank()) {
-                            appendLine("message: ${execution.message}")
-                        }
-                        if (execution.rawOutput.isNotBlank()) {
-                            appendLine()
-                            append(execution.rawOutput)
-                        }
-                    }
+                    showResultText(
+                        buildString {
+                            appendLine("status: ${execution.status}")
+                            appendLine("stage: ${execution.stage}")
+                            if (execution.message.isNotBlank()) {
+                                appendLine("message: ${execution.message}")
+                            }
+                            if (execution.rawOutput.isNotBlank()) {
+                                appendLine()
+                                append(execution.rawOutput)
+                            }
+                        },
+                    )
                 }.onFailure { throwable ->
-                    resultArea.text = PhpDebugToolsBundle.message(
-                        "toolwindow.methodInvoke.result.failed",
-                        throwable.message ?: throwable::class.java.simpleName,
+                    showResultText(
+                        PhpDebugToolsBundle.message(
+                            "toolwindow.methodInvoke.result.failed",
+                            throwable.message ?: throwable::class.java.simpleName,
+                        ),
                     )
                 }
             }
@@ -321,6 +394,11 @@ class MethodInvokeToolWindowPanel(
     internal fun executeButtonIconPath(): String = MethodInvokeActionIcons.SEND_PATH
 
     internal fun hasScrollableFormContent(): Boolean = formScrollPane.viewport.view === formContentPanel
+}
+
+private object BottomPanelCard {
+    const val RESULT = "result"
+    const val EDITOR = "editor"
 }
 
 private object MethodInvokeActionIcons {

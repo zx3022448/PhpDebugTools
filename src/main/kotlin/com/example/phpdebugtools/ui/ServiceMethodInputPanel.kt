@@ -13,16 +13,19 @@ import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
 import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.Rectangle
 import javax.swing.BoxLayout
 import javax.swing.JButton
-import javax.swing.JComponent
 import javax.swing.JPanel
-import javax.swing.JViewport
-import javax.swing.SwingUtilities
 
-internal class ServiceMethodInputPanel(parameters: List<MethodParameterSchema>) : JPanel(BorderLayout()) {
-    private val parameterEditors = parameters.map { ServiceMethodArgumentEditor(it) }
+internal class ServiceMethodInputPanel(
+    parameters: List<MethodParameterSchema>,
+    private val onParameterExpandRequested: ((name: String, value: String) -> Unit)? = null,
+) : JPanel(BorderLayout()) {
+    private val parameterEditors = parameters.map { parameter ->
+        ServiceMethodArgumentEditor(parameter) { name, value ->
+            onParameterExpandRequested?.invoke(name, value)
+        }
+    }
     private val argsTextArea = JBTextArea("[]")
 
     init {
@@ -68,39 +71,24 @@ internal class ServiceMethodInputPanel(parameters: List<MethodParameterSchema>) 
         parameterEditors.firstOrNull { it.parameter.name == name }?.setText(value)
     }
 
-    internal fun toggleParameterExpanded(name: String) {
-        parameterEditors.firstOrNull { it.parameter.name == name }?.toggleExpanded()
-    }
-
-    internal fun isParameterExpanded(name: String): Boolean {
-        return parameterEditors.firstOrNull { it.parameter.name == name }?.isExpanded() == true
-    }
-
-    internal fun editorPreferredHeight(name: String): Int {
-        return parameterEditors.firstOrNull { it.parameter.name == name }?.preferredSize?.height ?: 0
+    internal fun parameterValue(name: String): String? {
+        return parameterEditors.firstOrNull { it.parameter.name == name }?.text()
     }
 }
 
 private class ServiceMethodArgumentEditor(
     internal val parameter: MethodParameterSchema,
+    private val onExpandRequested: (name: String, value: String) -> Unit,
 ) : JPanel(BorderLayout()) {
     private val singleLineField = JBTextField()
-    private val multiLineArea = JBTextArea().apply {
-        rows = 4
-        lineWrap = true
-        wrapStyleWord = true
-    }
-    private val multiLineScrollPane = JBScrollPane(multiLineArea).apply {
-        preferredSize = Dimension(200, 96)
-    }
-    private val editorHost = JPanel(BorderLayout())
     private val toggleButton = JButton()
-    private var expanded = false
 
     init {
         val parameterDraft = toRequestParameterDraft(parameter)
         singleLineField.text = parameterDraft.example
-        multiLineArea.text = parameterDraft.example
+        toggleButton.addActionListener {
+            onExpandRequested(parameter.name, text())
+        }
 
         add(
             JBLabel(
@@ -116,66 +104,19 @@ private class ServiceMethodArgumentEditor(
         )
         add(
             JPanel(BorderLayout(8, 0)).apply {
-                add(editorHost, BorderLayout.CENTER)
+                add(singleLineField, BorderLayout.CENTER)
                 add(toggleButton, BorderLayout.EAST)
             },
             BorderLayout.CENTER,
         )
         border = javax.swing.BorderFactory.createEmptyBorder(0, 0, 8, 0)
-        applyExpandedState()
+        toggleButton.text = PhpDebugToolsBundle.message("toolwindow.methodInvoke.serviceArg.expand")
+        maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
     }
 
-    fun text(): String = if (expanded) multiLineArea.text else singleLineField.text
+    fun text(): String = singleLineField.text
 
     fun setText(value: String) {
         singleLineField.text = value
-        multiLineArea.text = value
-    }
-
-    fun toggleExpanded() {
-        setExpanded(!expanded)
-    }
-
-    fun isExpanded(): Boolean = expanded
-
-    private fun setExpanded(value: Boolean) {
-        val current = text()
-        expanded = value
-        setText(current)
-        applyExpandedState()
-    }
-
-    private fun applyExpandedState() {
-        editorHost.removeAll()
-        editorHost.add(if (expanded) multiLineScrollPane else singleLineField, BorderLayout.CENTER)
-        toggleButton.text = if (expanded) {
-            PhpDebugToolsBundle.message("toolwindow.methodInvoke.serviceArg.collapse")
-        } else {
-            PhpDebugToolsBundle.message("toolwindow.methodInvoke.serviceArg.expand")
-        }
-        maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
-        revalidateAncestors()
-        if (expanded) {
-            scrollIntoView()
-        }
-    }
-
-    private fun revalidateAncestors() {
-        var current: java.awt.Component? = this
-        while (current != null) {
-            if (current is JComponent) {
-                current.revalidate()
-                current.repaint()
-            }
-            current = current.parent
-        }
-    }
-
-    private fun scrollIntoView() {
-        SwingUtilities.invokeLater {
-            val viewport = SwingUtilities.getAncestorOfClass(JViewport::class.java, this) as? JViewport ?: return@invokeLater
-            val boundsInViewport = SwingUtilities.convertRectangle(parent, bounds, viewport.view)
-            viewport.scrollRectToVisible(Rectangle(boundsInViewport.x, boundsInViewport.y, boundsInViewport.width, boundsInViewport.height))
-        }
     }
 }

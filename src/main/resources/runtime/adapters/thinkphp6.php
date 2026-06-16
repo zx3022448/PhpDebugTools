@@ -1,10 +1,8 @@
 <?php
 
-declare(strict_types=1);
-
-return [
+return array(
     'name' => 'thinkphp6',
-    'bootstrap' => static function (array $payload): array {
-        return ['status' => 'ok', 'framework' => 'thinkphp6', 'payload' => $payload];
+    'bootstrap' => function ($payload) {
+        return array('status' => 'ok', 'framework' => 'thinkphp6', 'payload' => is_array($payload) ? $payload : array());
     },
-];
+);

@@ -1,14 +1,17 @@
 <?php
 
-declare(strict_types=1);
-
 if (!function_exists('php_debug_tools_fail')) {
-    function php_debug_tools_fail(array $error): void
+    /**
+     * 输出统一错误结构，避免运行时脚本直接抛出难以理解的错误。
+     *
+     * @param array $error 错误信息
+     */
+    function php_debug_tools_fail($error)
     {
         $payload = json_encode($error, JSON_UNESCAPED_UNICODE);
 
         if (PHP_SAPI === 'cli') {
-            fwrite(STDERR, (string) $payload);
+            fwrite(STDERR, $payload !== false ? $payload : '');
             exit(1);
         }
 
@@ -17,58 +20,64 @@ if (!function_exists('php_debug_tools_fail')) {
             header('Content-Type: application/json; charset=utf-8');
         }
 
-        echo $payload;
+        echo $payload !== false ? $payload : '';
         exit(1);
     }
 }
 
 $configPath = __DIR__ . '/runtime-config.json';
-$config = json_decode((string) file_get_contents($configPath), true) ?: [];
-$adapter = $config['frameworkAdapter'] ?? 'thinkphp6';
-$runtimePayload = $GLOBALS['phpDebugToolsPayload'] ?? [];
-$allowedAdapters = ['thinkphp5', 'thinkphp6'];
+$configContent = file_get_contents($configPath);
+$config = json_decode($configContent !== false ? $configContent : '', true);
+if (!is_array($config)) {
+    $config = array();
+}
+$adapter = isset($config['frameworkAdapter']) ? $config['frameworkAdapter'] : 'thinkphp6';
+$runtimePayload = isset($GLOBALS['phpDebugToolsPayload']) && is_array($GLOBALS['phpDebugToolsPayload'])
+    ? $GLOBALS['phpDebugToolsPayload']
+    : array();
+$allowedAdapters = array('thinkphp5', 'thinkphp6');
 
 if (!in_array($adapter, $allowedAdapters, true)) {
-    php_debug_tools_fail([
+    php_debug_tools_fail(array(
         'status' => 'error',
         'stage' => 'framework',
         'message' => 'Framework adapter is not allowed',
-    ]);
+    ));
 }
 
 $adapterFile = __DIR__ . '/adapters/' . $adapter . '.php';
 
 if (!is_file($adapterFile)) {
-    php_debug_tools_fail([
+    php_debug_tools_fail(array(
         'status' => 'error',
         'stage' => 'framework',
         'message' => 'Framework adapter file not found',
-    ]);
+    ));
 }
 
 $adapterDefinition = require $adapterFile;
 
 if (!is_array($adapterDefinition)) {
-    php_debug_tools_fail([
+    php_debug_tools_fail(array(
         'status' => 'error',
         'stage' => 'framework',
         'message' => 'Framework adapter definition must be an array',
-    ]);
+    ));
 }
 
-$bootstrap = $adapterDefinition['bootstrap'] ?? null;
+$bootstrap = isset($adapterDefinition['bootstrap']) ? $adapterDefinition['bootstrap'] : null;
 
 if (!is_callable($bootstrap)) {
-    php_debug_tools_fail([
+    php_debug_tools_fail(array(
         'status' => 'error',
         'stage' => 'framework',
         'message' => 'Framework adapter bootstrap is not callable',
-    ]);
+    ));
 }
 
-return [
+return array(
     'status' => 'ok',
     'stage' => 'bootstrap',
-    'adapter' => $adapterDefinition['name'] ?? $adapter,
-    'result' => $bootstrap(is_array($runtimePayload) ? $runtimePayload : []),
-];
+    'adapter' => isset($adapterDefinition['name']) ? $adapterDefinition['name'] : $adapter,
+    'result' => $bootstrap($runtimePayload),
+);
