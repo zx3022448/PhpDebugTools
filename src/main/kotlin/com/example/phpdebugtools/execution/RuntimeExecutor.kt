@@ -29,6 +29,9 @@ class RuntimeExecutor(
             status = if (commandResult.exitCode == 0) "ok" else "error",
             stage = "runtime",
             message = "",
+            resultText = "",
+            resultType = "",
+            exceptionText = "",
             rawOutput = fallbackOutput,
         )
     }
@@ -44,18 +47,25 @@ class RuntimeExecutor(
             status = status,
             stage = stage,
             message = extract(output, "message") ?: "",
+            resultText = extract(output, "resultText") ?: "",
+            resultType = extract(output, "resultType") ?: "",
+            exceptionText = extract(output, "exceptionText") ?: "",
             rawOutput = output,
         )
     }
 
     private fun extract(json: String, field: String): String? {
-        val pattern = Regex(""""$field"\s*:\s*"((?:\\.|[^"\\])*)"""")
+        val pattern = Regex("\"$field\"\\s*:\\s*(\"((?:\\\\.|[^\"\\\\])*)\"|null)")
         val match = pattern.find(json) ?: return null
-        return match.groupValues[1]
+        if (match.groupValues[1] == "null") {
+            return ""
+        }
+        return match.groupValues[2]
             .replace("\\\"", "\"")
             .replace("\\\\", "\\")
             .replace("\\n", "\n")
             .replace("\\r", "\r")
             .replace("\\t", "\t")
+            .replace("\\/", "/")
     }
 }

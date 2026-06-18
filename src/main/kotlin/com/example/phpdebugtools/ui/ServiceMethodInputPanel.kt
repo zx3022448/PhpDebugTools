@@ -3,6 +3,7 @@ package com.example.phpdebugtools.ui
 import com.example.phpdebugtools.PhpDebugToolsBundle
 import com.example.phpdebugtools.methods.MethodParameterSchema
 import com.example.phpdebugtools.toolwindow.RequestParameterDraft
+import com.example.phpdebugtools.toolwindow.ToolWindowUiStyles
 import com.example.phpdebugtools.toolwindow.normalizeParameterType
 import com.example.phpdebugtools.toolwindow.serializeDraftValue
 import com.example.phpdebugtools.toolwindow.toRequestParameterDraft
@@ -20,7 +21,7 @@ import javax.swing.JPanel
 internal class ServiceMethodInputPanel(
     parameters: List<MethodParameterSchema>,
     private val onParameterExpandRequested: ((name: String, value: String) -> Unit)? = null,
-) : JPanel(BorderLayout()) {
+) : JPanel(BorderLayout(0, 8)) {
     private val parameterEditors = parameters.map { parameter ->
         ServiceMethodArgumentEditor(parameter) { name, value ->
             onParameterExpandRequested?.invoke(name, value)
@@ -29,16 +30,22 @@ internal class ServiceMethodInputPanel(
     private val argsTextArea = JBTextArea("[]")
 
     init {
+        isOpaque = false
         if (parameterEditors.isEmpty()) {
             argsTextArea.minimumSize = Dimension(360, 160)
-            add(JBScrollPane(argsTextArea), BorderLayout.CENTER)
+            ToolWindowUiStyles.applyResultArea(argsTextArea)
+            add(JBScrollPane(argsTextArea).also(ToolWindowUiStyles::applyScrollPane), BorderLayout.CENTER)
         } else {
-            add(JBPanel<JBPanel<*>>().apply {
-                layout = BoxLayout(this, BoxLayout.Y_AXIS)
-                parameterEditors.forEach { editor ->
-                    add(editor)
-                }
-            }, BorderLayout.CENTER)
+            add(
+                JBPanel<JBPanel<*>>().apply {
+                    layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                    isOpaque = false
+                    parameterEditors.forEach { editor ->
+                        add(editor)
+                    }
+                },
+                BorderLayout.CENTER,
+            )
         }
     }
 
@@ -86,24 +93,17 @@ private class ServiceMethodArgumentEditor(
     init {
         val parameterDraft = toRequestParameterDraft(parameter)
         singleLineField.text = parameterDraft.example
+        ToolWindowUiStyles.applyInputSurface(singleLineField)
         toggleButton.addActionListener {
             onExpandRequested(parameter.name, text())
         }
+        ToolWindowUiStyles.applySecondaryButton(toggleButton)
+        isOpaque = false
 
-        add(
-            JBLabel(
-                buildString {
-                    append(parameter.name)
-                    append(" (")
-                    append(parameter.declaredType ?: "mixed")
-                    append(")")
-                    append(if (parameter.required) " 必填" else " 可选")
-                },
-            ),
-            BorderLayout.NORTH,
-        )
+        add(buildParameterLabel(), BorderLayout.NORTH)
         add(
             JPanel(BorderLayout(8, 0)).apply {
+                isOpaque = false
                 add(singleLineField, BorderLayout.CENTER)
                 add(toggleButton, BorderLayout.EAST)
             },
@@ -119,4 +119,15 @@ private class ServiceMethodArgumentEditor(
     fun setText(value: String) {
         singleLineField.text = value
     }
+
+    private fun buildParameterLabel(): JBLabel =
+        JBLabel(
+            buildString {
+                append(parameter.name)
+                append(" (")
+                append(parameter.declaredType ?: "mixed")
+                append(")")
+                append(if (parameter.required) " 必填" else " 可选")
+            },
+        ).also(ToolWindowUiStyles::applyMutedLabel)
 }

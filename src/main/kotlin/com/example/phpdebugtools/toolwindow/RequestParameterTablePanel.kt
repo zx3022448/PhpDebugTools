@@ -4,34 +4,51 @@ import com.example.phpdebugtools.PhpDebugToolsBundle
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
+import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
+import java.awt.Dimension
+import java.awt.FlowLayout
 import javax.swing.JButton
 import javax.swing.JPanel
 import javax.swing.table.AbstractTableModel
 
-internal class RequestParameterTablePanel : JBPanel<JBPanel<*>>(BorderLayout()) {
+internal class RequestParameterTablePanel : JBPanel<JBPanel<*>>(BorderLayout(0, 8)) {
     private val tableModel = RequestParameterTableModel()
-    private val table = JBTable(tableModel)
+    private val addButton = JButton(PhpDebugToolsBundle.message("toolwindow.methodInvoke.paramTable.add"))
+    private val removeButton = JButton(PhpDebugToolsBundle.message("toolwindow.methodInvoke.paramTable.remove"))
+    private val toolbarPanel = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
+    private val table = JBTable(tableModel).apply {
+        fillsViewportHeight = true
+        rowHeight = JBUI.scale(30)
+        ToolWindowUiStyles.applyTable(this)
+    }
+    private val scrollPane = JBScrollPane(table).apply {
+        background = table.background
+    }
 
     init {
-        add(
-            JPanel().apply {
-                add(JButton(PhpDebugToolsBundle.message("toolwindow.methodInvoke.paramTable.add")).apply {
-                    addActionListener { tableModel.addRow(RequestParameterDraft()) }
-                })
-                add(JButton(PhpDebugToolsBundle.message("toolwindow.methodInvoke.paramTable.remove")).apply {
-                    addActionListener {
-                        val selectedRow = table.selectedRow
-                        if (selectedRow >= 0) {
-                            tableModel.removeRow(selectedRow)
-                        }
-                    }
-                })
-            },
-            BorderLayout.NORTH,
-        )
-        add(JBScrollPane(table), BorderLayout.CENTER)
-        table.fillsViewportHeight = true
+        ToolWindowUiStyles.applyInnerSurface(this)
+        ToolWindowUiStyles.applySecondaryButton(addButton)
+        ToolWindowUiStyles.applySecondaryButton(removeButton)
+        ToolWindowUiStyles.applyScrollPane(scrollPane)
+        table.emptyText.text = PhpDebugToolsBundle.message("toolwindow.methodInvoke.paramTable.empty")
+
+        toolbarPanel.isOpaque = false
+        toolbarPanel.add(addButton)
+        toolbarPanel.add(removeButton)
+        addButton.addActionListener { tableModel.addRow(RequestParameterDraft()) }
+        removeButton.addActionListener {
+            val selectedRow = table.selectedRow
+            if (selectedRow >= 0) {
+                tableModel.removeRow(selectedRow)
+            }
+        }
+
+        add(toolbarPanel, BorderLayout.NORTH)
+        add(scrollPane, BorderLayout.CENTER)
+        tableModel.setRows(emptyList())
+        minimumSize = Dimension(0, JBUI.scale(220))
+        preferredSize = Dimension(preferredSize.width, JBUI.scale(240))
     }
 
     fun setRows(rows: List<RequestParameterDraft>) {
@@ -39,6 +56,8 @@ internal class RequestParameterTablePanel : JBPanel<JBPanel<*>>(BorderLayout()) 
     }
 
     fun rows(): List<RequestParameterDraft> = tableModel.rows()
+
+    internal fun toolbarButtonCount(): Int = toolbarPanel.componentCount
 }
 
 private class RequestParameterTableModel : AbstractTableModel() {
