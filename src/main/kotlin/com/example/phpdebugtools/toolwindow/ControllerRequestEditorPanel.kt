@@ -152,7 +152,7 @@ class ControllerRequestEditorPanel : JBPanel<JBPanel<*>>(BorderLayout()) {
         label.background = if (selected) ToolWindowUiStyles.selectedTabBackground() else tabs.background
         label.foreground = if (selected) ToolWindowUiStyles.activeBlue() else ToolWindowUiStyles.statusColor(MethodInvokeVisualStatus.IDLE)
         label.isOpaque = selected
-        label.font = label.font.deriveFont(if (selected) java.awt.Font.BOLD else java.awt.Font.PLAIN)
+        ToolWindowUiStyles.applyTabLabel(label, selected)
     }
 
     private fun syncBodyModeAvailability() {

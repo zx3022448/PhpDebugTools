@@ -4,7 +4,9 @@ import com.example.phpdebugtools.PhpDebugToolsBundle
 import com.example.phpdebugtools.runtime.RuntimeInstaller
 import com.example.phpdebugtools.runtime.RuntimeInstallOptions
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
@@ -14,20 +16,16 @@ import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.JComponent
 
-class PhpDebugToolsToolWindowFactory : ToolWindowFactory {
+class PhpDebugToolsToolWindowFactory : ToolWindowFactory, DumbAware {
     override fun shouldBeAvailable(project: Project): Boolean = true
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         logger.info("Creating PhpDebugTools tool window content for project '${project.name}'")
-        val tabs = JBTabbedPane()
-        val panel = PhpDebugToolsToolWindowPanel(tabs, project)
-        buildToolWindowTabs(panel).forEach { tab ->
-            tabs.addTab(tab.title, tab.component)
-        }
+        val panel = PhpDebugToolsToolWindowPanel(project = project)
         project.basePath?.let { projectBasePath ->
             updateWorkspaceInBackground(panel, Path.of(projectBasePath))
         }
-        val content = ContentFactory.getInstance().createContent(panel, null, false)
+        val content = ContentFactory.getInstance().createContent(panel, PhpDebugToolsBundle.message("toolwindow.title"), false)
         toolWindow.contentManager.addContent(content)
     }
 
@@ -36,19 +34,32 @@ class PhpDebugToolsToolWindowFactory : ToolWindowFactory {
 
         private fun updateWorkspaceInBackground(panel: PhpDebugToolsToolWindowPanel, projectRoot: Path) {
             ApplicationManager.getApplication().executeOnPooledThread {
-                val state = buildToolWindowWorkspaceState(projectRoot)
-                ApplicationManager.getApplication().invokeLater {
+                // runCatching 确保后台异常不会让 UI 停在空白状态
+                val state = runCatching { buildToolWindowWorkspaceState(projectRoot) }
+                    .getOrElse { buildLazyToolWindowWorkspaceState() }
+                // ModalityState.any() 确保启动期间的模态状态不阻塞此回调
+                ApplicationManager.getApplication().invokeLater({
                     panel.updateWorkspace(state)
-                }
+                    panel.revalidate()
+                    panel.repaint()
+                }, ModalityState.any())
             }
         }
     }
 }
 
+private const val DEFAULT_TOOL_WINDOW_TAB_INDEX = 1
+
 internal data class ToolWindowTabDefinition(
     val title: String,
     val component: JComponent,
 )
+
+internal fun selectDefaultToolWindowTab(tabs: JBTabbedPane) {
+    if (tabs.tabCount > DEFAULT_TOOL_WINDOW_TAB_INDEX) {
+        tabs.selectedIndex = DEFAULT_TOOL_WINDOW_TAB_INDEX
+    }
+}
 
 internal fun buildToolWindowTabs(panel: PhpDebugToolsToolWindowPanel): List<ToolWindowTabDefinition> {
     return listOf(

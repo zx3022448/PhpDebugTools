@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew.bat compileKotlin:*)",
+      "Bash(./gradlew.bat test:*)",
+      "Bash(./gradlew.bat clean:*)",
+      "Read(//d/work_java/PhpDebugTools/**)",
+      "Read(//c/Users/PC/AppData/Local/JetBrains/**)",
+      "Bash(./gradlew buildPlugin:*)"
+    ]
+  }
+}

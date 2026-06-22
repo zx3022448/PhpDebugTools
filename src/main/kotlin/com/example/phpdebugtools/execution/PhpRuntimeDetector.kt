@@ -34,7 +34,7 @@ class PhpRuntimeDetector(
             }
             result.stdout.lineSequence()
                 .map { it.trim() }
-                .filter { it.isNotEmpty() }
+                .filter { it.isNotEmpty() && isExecutablePhpCandidate(it) }
                 .forEach { path -> candidates.putIfAbsent(path, "PATH") }
         }
     }
@@ -63,6 +63,9 @@ class PhpRuntimeDetector(
     }
 
     private fun inspectRuntime(command: String, source: String): DetectedPhpRuntime? {
+        if (!isExecutablePhpCandidate(command)) {
+            return null
+        }
         val result = runCatching {
             commandRunner.run(listOf(command, "-r", "echo PHP_VERSION;"), null)
         }.getOrNull() ?: return null
@@ -86,6 +89,14 @@ class PhpRuntimeDetector(
             ?.groupValues
             ?.getOrNull(1)
             .orEmpty()
+    }
+
+    private fun isExecutablePhpCandidate(command: String): Boolean {
+        val normalized = command.trim().lowercase()
+        if (normalized.endsWith(".bat") || normalized.endsWith(".cmd")) {
+            return false
+        }
+        return true
     }
 
     private fun versionWeight(version: String): Long {

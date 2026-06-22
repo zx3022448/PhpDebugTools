@@ -33,7 +33,6 @@ import java.awt.CardLayout
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.Font
-import java.awt.Graphics
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.Box
@@ -43,9 +42,11 @@ import javax.swing.JButton
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.Icon
+import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.JTabbedPane
+import javax.swing.ListCellRenderer
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
@@ -55,9 +56,10 @@ class MethodInvokeToolWindowPanel(
     private val methodInvokeExecutor: MethodInvokeExecutor = MethodInvokeExecutor(ProcessCommandRunner()),
 ) : JBPanel<JBPanel<*>>(BorderLayout()) {
     private val searchField = SearchTextField()
-    private val phpRuntimeModel = DefaultComboBoxModel<String>()
+    private val phpRuntimeModel = DefaultComboBoxModel<PhpRuntimeComboItem>()
     private val phpExecutableComboBox = JComboBox(phpRuntimeModel).apply {
         isEditable = true
+        renderer = PhpRuntimeComboRenderer()
     }
     private val phpRefreshButton = createIconButton(
         tooltip = PhpDebugToolsBundle.message("toolwindow.methodInvoke.php.refresh.button"),
@@ -82,6 +84,16 @@ class MethodInvokeToolWindowPanel(
     private val argsEditorHost = JPanel(BorderLayout())
     private val requestContextPanel = ControllerRequestEditorPanel()
     private val resultArea = readOnlyArea()
+    private val statusStripLabel = JBLabel().apply {
+        horizontalAlignment = JBLabel.CENTER
+        ToolWindowUiStyles.applyTitleLabel(this, 1F)
+    }
+    // 状态条面板单独持有，便于 setVisualStatus 动态更新左侧 accent 色条
+    private val statusStripPanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
+        ToolWindowUiStyles.applyStatusStrip(this, MethodInvokeVisualStatus.IDLE)
+        add(statusStripLabel, BorderLayout.CENTER)
+        preferredSize = Dimension(0, JBUI.scale(36))
+    }
     private val parameterEditArea = JBTextArea().apply {
         rows = 8
         lineWrap = true
@@ -105,6 +117,7 @@ class MethodInvokeToolWindowPanel(
     private var bottomResultSnapshot: String = ""
     private var allMethods: List<MethodLookupItem> = emptyList()
     private var detectedPhpRuntimes: List<DetectedPhpRuntime> = emptyList()
+    private var selectedPhpCommand: String? = null
 
     init {
         ToolWindowUiStyles.applyWorkbenchSurface(this)
@@ -124,6 +137,7 @@ class MethodInvokeToolWindowPanel(
         buildBottomPanel()
 
         methodComboBox.addActionListener { applySelectedMethodTemplate() }
+        phpExecutableComboBox.addActionListener { syncSelectedPhpRuntimeDisplay() }
         phpRefreshButton.addActionListener { detectPhpRuntimes() }
         searchField.textEditor.document.addDocumentListener(
             object : DocumentListener {
@@ -245,11 +259,51 @@ class MethodInvokeToolWindowPanel(
         }
 
     private fun buildTopWorkspace(): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout(0, 10)).apply {
+        JBPanel<JBPanel<*>>(BorderLayout(0, 8)).apply {
             isOpaque = false
-            add(buildUtilityToolbar(), BorderLayout.NORTH)
-            add(buildRequestToolbar(), BorderLayout.CENTER)
+            add(buildMethodRow(), BorderLayout.NORTH)
+            add(buildPhpRow(), BorderLayout.CENTER)
             border = JBUI.Borders.empty(10, 10, 0, 10)
+        }
+
+    private fun buildMethodRow(): JComponent =
+        JBPanel<JBPanel<*>>(BorderLayout(8, 0)).apply {
+            ToolWindowUiStyles.applyToolbarCard(this)
+            add(
+                JPanel(BorderLayout()).apply {
+                    isOpaque = false
+                    preferredSize = Dimension(JBUI.scale(180), JBUI.scale(34))
+                    minimumSize = preferredSize
+                    add(searchField, BorderLayout.CENTER)
+                },
+                BorderLayout.WEST,
+            )
+            add(methodComboBox, BorderLayout.CENTER)
+            add(
+                JPanel().apply {
+                    layout = BoxLayout(this, BoxLayout.X_AXIS)
+                    isOpaque = false
+                    add(Box.createHorizontalStrut(JBUI.scale(8)))
+                    add(refreshButton)
+                    add(Box.createHorizontalStrut(JBUI.scale(4)))
+                    add(executeButton)
+                },
+                BorderLayout.EAST,
+            )
+        }
+
+    private fun buildPhpRow(): JComponent =
+        JBPanel<JBPanel<*>>(BorderLayout(8, 0)).apply {
+            ToolWindowUiStyles.applyToolbarCard(this)
+            add(
+                JBLabel("PHP").apply {
+                    ToolWindowUiStyles.applyTitleLabel(this)
+                    ToolWindowUiStyles.applyMutedLabel(this)
+                },
+                BorderLayout.WEST,
+            )
+            add(phpExecutableComboBox, BorderLayout.CENTER)
+            add(phpRefreshButton, BorderLayout.EAST)
         }
 
     private fun buildCenterWorkspace(): JComponent =
@@ -269,116 +323,6 @@ class MethodInvokeToolWindowPanel(
             preferredSize = Dimension(preferredSize.width, JBUI.scale(290))
         }
 
-    private fun buildUtilityToolbar(): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout(10, 0)).apply {
-            isOpaque = false
-            add(
-                buildToolbarSelect(
-                    title = "Setting",
-                    component = JComboBox(arrayOf("Setting")),
-                    leadingBadge = null,
-                ),
-                BorderLayout.WEST,
-            )
-            add(buildToolbarActions(), BorderLayout.CENTER)
-        }
-
-    private fun buildToolbarActions(): JComponent =
-        JBPanel<JBPanel<*>>().apply {
-            layout = BoxLayout(this, BoxLayout.X_AXIS)
-            isOpaque = false
-            add(createToolbarGlyph("\u2A2F"))
-            add(Box.createHorizontalStrut(JBUI.scale(14)))
-            add(createToolbarGlyph("\uD83D\uDCBE"))
-            add(Box.createHorizontalStrut(JBUI.scale(14)))
-            add(createToolbarGlyph("\u2197"))
-            add(Box.createHorizontalStrut(JBUI.scale(14)))
-            add(createToolbarGlyph("\u2295"))
-            add(Box.createHorizontalStrut(JBUI.scale(14)))
-            add(createToolbarGlyph("\u25B6"))
-            add(Box.createHorizontalStrut(JBUI.scale(14)))
-            add(createToolbarGlyph("\u22EE"))
-            add(Box.createHorizontalGlue())
-            add(createToolbarGlyph("Cookie"))
-        }
-
-    private fun buildRequestToolbar(): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout(12, 0)).apply {
-            isOpaque = false
-            add(
-                buildToolbarSelect(
-                    title = "HTTP",
-                    component = JComboBox(arrayOf("HTTP")),
-                ),
-                BorderLayout.WEST,
-            )
-            add(buildSearchBar(), BorderLayout.CENTER)
-        }
-
-    private fun buildSearchBar(): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout(10, 0)).apply {
-            ToolWindowUiStyles.applyToolbarCard(this)
-            add(
-                JBLabel("G").apply {
-                    font = font.deriveFont(Font.BOLD, font.size2D + 4F)
-                    foreground = ToolWindowUiStyles.activeBlue()
-                },
-                BorderLayout.WEST,
-            )
-            add(buildMethodSearchContent(), BorderLayout.CENTER)
-            add(executeButton, BorderLayout.EAST)
-        }
-
-    private fun buildMethodSearchContent(): JComponent =
-        JBPanel<JBPanel<*>>().apply {
-            layout = BoxLayout(this, BoxLayout.X_AXIS)
-            isOpaque = false
-            add(buildInlineField(searchField, JBUI.scale(200)))
-            add(Box.createHorizontalStrut(JBUI.scale(8)))
-            add(buildInlineField(methodComboBox, JBUI.scale(300)))
-            add(Box.createHorizontalStrut(JBUI.scale(8)))
-            add(refreshButton)
-            add(Box.createHorizontalStrut(JBUI.scale(8)))
-            add(buildInlineField(phpExecutableComboBox, JBUI.scale(280)))
-            add(Box.createHorizontalStrut(JBUI.scale(8)))
-            add(phpRefreshButton)
-        }
-
-    private fun buildToolbarSelect(title: String, component: JComponent, leadingBadge: String? = null): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout(8, 0)).apply {
-            ToolWindowUiStyles.applyToolbarCard(this)
-            add(
-                JBLabel(
-                    buildString {
-                        leadingBadge?.let {
-                            append(it)
-                            append(" ")
-                        }
-                        append(title)
-                    },
-                ).apply {
-                    font = font.deriveFont(Font.BOLD, font.size2D + 1F)
-                },
-                BorderLayout.WEST,
-            )
-            add(component, BorderLayout.CENTER)
-            preferredSize = Dimension(JBUI.scale(210), JBUI.scale(48))
-        }
-
-    private fun buildInlineField(component: JComponent, width: Int): JComponent =
-        JPanel(BorderLayout()).apply {
-            isOpaque = false
-            preferredSize = Dimension(width, JBUI.scale(34))
-            minimumSize = preferredSize
-            add(component, BorderLayout.CENTER)
-        }
-
-    private fun createToolbarGlyph(text: String): JComponent =
-        JBLabel(text).apply {
-            font = font.deriveFont(Font.PLAIN, font.size2D + if (text.length <= 2) 6F else 2F)
-            ToolWindowUiStyles.applyMutedLabel(this)
-        }
-
     private fun buildMainContentCards() {
         mainCardPanel.isOpaque = false
         mainCardPanel.add(buildOverviewPanel(), MainContentCard.OVERVIEW)
@@ -391,10 +335,10 @@ class MethodInvokeToolWindowPanel(
     }
 
     private fun buildOverviewPanel(): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout(0, 12)).apply {
+        JBPanel<JBPanel<*>>(BorderLayout()).apply {
             isOpaque = false
-            add(buildSummarySurface(), BorderLayout.NORTH)
-            add(buildEditorSurface(argsEditorHost, PhpDebugToolsBundle.message("toolwindow.methodInvoke.args.label")), BorderLayout.CENTER)
+            border = JBUI.Borders.empty(12)
+            add(buildSummarySurface(), BorderLayout.CENTER)
         }
 
     private fun buildSummarySurface(): JComponent =
@@ -455,7 +399,8 @@ class MethodInvokeToolWindowPanel(
             isOpaque = false
             add(
                 JBLabel(title).apply {
-                    font = font.deriveFont(Font.PLAIN, font.size2D)
+                    // 分区标题用更小字号，与内容区形成视觉层次
+                    font = font.deriveFont(Font.PLAIN, (font.size2D - 1f).coerceAtLeast(10f))
                     ToolWindowUiStyles.applyMutedLabel(this)
                 },
                 BorderLayout.NORTH,
@@ -469,20 +414,7 @@ class MethodInvokeToolWindowPanel(
             add(component, BorderLayout.CENTER)
         }
 
-    private fun buildStatusStrip(): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout()).apply {
-            ToolWindowUiStyles.applyShellSurface(this)
-            border = JBUI.Borders.customLine(ToolWindowUiStyles.warningRed(), 1, 0, 0, 0)
-            add(
-                JBLabel("Status: 0  Time: 0ms  Size: 0B").apply {
-                    horizontalAlignment = JBLabel.CENTER
-                    font = font.deriveFont(Font.BOLD, font.size2D + 1F)
-                    foreground = ToolWindowUiStyles.warningRed()
-                },
-                BorderLayout.CENTER,
-            )
-            preferredSize = Dimension(preferredSize.width, JBUI.scale(54))
-        }
+    private fun buildStatusStrip(): JComponent = statusStripPanel
 
     private fun buildBottomPanel() {
         bottomPanel.add(
@@ -522,14 +454,14 @@ class MethodInvokeToolWindowPanel(
         configureWorkbenchTabs(topTabs)
         configureWorkbenchTabs(bottomTabs)
 
-        topTabs.addTab("Header", JPanel())
-        topTabs.addTab("Param", JPanel())
-        topTabs.addTab("Path", JPanel())
-        topTabs.addTab("Body", JPanel())
-        topTabs.addTab("Script", JPanel())
+        topTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.overview"), JPanel())
+        topTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.params"), JPanel())
+        topTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.path"), JPanel())
+        topTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.body"), JPanel())
+        topTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.script"), JPanel())
 
-        bottomTabs.addTab("Header", bottomPanel)
-        bottomTabs.addTab("Param", JPanel())
+        bottomTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.result"), bottomPanel)
+        bottomTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.params"), JPanel())
         configureTabLook(bottomTabs)
 
         topTabs.addChangeListener {
@@ -569,16 +501,16 @@ class MethodInvokeToolWindowPanel(
         }
         if (tabComponent is JBLabel) {
             tabComponent.border = ToolWindowUiStyles.tabBorder(selected)
-            tabComponent.background = if (selected) ToolWindowUiStyles.selectedTabBackground() else tabs.background
+            tabComponent.background = tabs.background
             tabComponent.foreground = if (selected) ToolWindowUiStyles.activeBlue() else ToolWindowUiStyles.statusColor(MethodInvokeVisualStatus.IDLE)
-            tabComponent.isOpaque = selected
-            tabComponent.font = tabComponent.font.deriveFont(if (selected) Font.BOLD else Font.PLAIN)
+            tabComponent.isOpaque = false
+            ToolWindowUiStyles.applyTabLabel(tabComponent, selected)
             tabComponent.text = tabs.getTitleAt(index)
         }
     }
 
     private fun configureTypography() {
-        signatureLabel.font = signatureLabel.font.deriveFont(Font.BOLD, signatureLabel.font.size2D + 3F)
+        ToolWindowUiStyles.applyTitleLabel(signatureLabel, 3F)
         ToolWindowUiStyles.applyMutedLabel(metaLabel)
     }
 
@@ -640,29 +572,68 @@ class MethodInvokeToolWindowPanel(
 
     private fun applyPhpRuntimeOptions(runtimes: List<DetectedPhpRuntime>, preferredCommand: String) {
         phpRuntimeModel.removeAllElements()
-        runtimes.map { it.command }.forEach(phpRuntimeModel::addElement)
+        val validRuntimes = runtimes.filter { isExecutablePhpCandidate(it.command) }
+        validRuntimes
+            .map { PhpRuntimeComboItem.Detected(it) }
+            .forEach(phpRuntimeModel::addElement)
 
         val customCommands = project?.service<RecentDebugStore>()?.recentPhpExecutables().orEmpty()
         customCommands
-            .filter { command -> runtimes.none { it.command == command } }
+            .filter(::isExecutablePhpCandidate)
+            .filter { command -> validRuntimes.none { it.command == command } }
+            .map { PhpRuntimeComboItem.Custom(it) }
             .forEach(phpRuntimeModel::addElement)
 
-        if (preferredCommand.isNotBlank() && (0 until phpRuntimeModel.size).none { phpRuntimeModel.getElementAt(it) == preferredCommand }) {
-            phpRuntimeModel.insertElementAt(preferredCommand, 0)
+        val preferred = preferredCommand
+            .takeIf(::isExecutablePhpCandidate)
+            ?.ifBlank { null }
+            ?: validRuntimes.firstOrNull()?.command
+            ?: "php"
+        val preferredItem = findPhpRuntimeItem(preferred)
+            ?: PhpRuntimeComboItem.Custom(preferred).also { phpRuntimeModel.insertElementAt(it, 0) }
+        phpExecutableComboBox.selectedItem = preferredItem
+        selectedPhpCommand = preferredItem.command
+        phpExecutableEditor().text = preferredItem.selectedText
+        phpExecutableComboBox.toolTipText = preferredItem.displayText
+    }
+
+    private fun findPhpRuntimeItem(command: String): PhpRuntimeComboItem? =
+        (0 until phpRuntimeModel.size)
+            .asSequence()
+            .map { phpRuntimeModel.getElementAt(it) }
+            .firstOrNull { it.command == command }
+
+    private fun syncSelectedPhpRuntimeDisplay() {
+        val selectedItem = phpExecutableComboBox.selectedItem as? PhpRuntimeComboItem ?: return
+        selectedPhpCommand = selectedItem.command
+        phpExecutableComboBox.toolTipText = selectedItem.displayText
+        val updateEditorText = Runnable {
+            if (phpExecutableComboBox.selectedItem === selectedItem) {
+                phpExecutableEditor().text = selectedItem.selectedText
+            }
         }
-        phpExecutableComboBox.selectedItem = preferredCommand.ifBlank { "php" }
-        phpExecutableEditor().text = preferredCommand.ifBlank { "php" }
-        phpExecutableComboBox.toolTipText = runtimes.firstOrNull { it.command == preferredCommand }?.displayName ?: preferredCommand
+        ApplicationManager.getApplication()?.invokeLater(updateEditorText) ?: updateEditorText.run()
+    }
+
+    private fun isExecutablePhpCandidate(command: String): Boolean {
+        val normalized = command.trim().lowercase()
+        return !normalized.endsWith(".bat") && !normalized.endsWith(".cmd")
     }
 
     private fun phpExecutableEditor(): JTextField =
         phpExecutableComboBox.editor.editorComponent as JTextField
 
-    private fun currentPhpCommand(): String =
-        (phpExecutableComboBox.editor.editorComponent as? JTextField)
+    private fun currentPhpCommand(): String {
+        val editorText = (phpExecutableComboBox.editor.editorComponent as? JTextField)
             ?.text
             ?.trim()
             .orEmpty()
+        val selectedItem = phpExecutableComboBox.selectedItem as? PhpRuntimeComboItem
+        if (selectedItem != null && editorText == selectedItem.selectedText) {
+            return selectedItem.command
+        }
+        return selectedPhpCommand?.takeIf { editorText == findPhpRuntimeItem(it)?.selectedText } ?: editorText
+    }
 
     private fun validatePhpCommand(command: String): String? {
         if (command.isBlank()) {
@@ -892,13 +863,19 @@ class MethodInvokeToolWindowPanel(
         JBScrollPane(area).also(ToolWindowUiStyles::applyScrollPane)
 
     private fun setVisualStatus(status: MethodInvokeVisualStatus) {
-        statusLabel.text = when (status) {
+        val text = when (status) {
             MethodInvokeVisualStatus.IDLE -> PhpDebugToolsBundle.message("toolwindow.methodInvoke.status.idle")
             MethodInvokeVisualStatus.RUNNING -> PhpDebugToolsBundle.message("toolwindow.methodInvoke.status.running")
             MethodInvokeVisualStatus.SUCCESS -> PhpDebugToolsBundle.message("toolwindow.methodInvoke.status.success")
             MethodInvokeVisualStatus.ERROR -> PhpDebugToolsBundle.message("toolwindow.methodInvoke.status.error")
         }
+        statusLabel.text = text
         ToolWindowUiStyles.applyStatusBadge(statusLabel, status)
+        statusStripLabel.text = text
+        statusStripLabel.foreground = ToolWindowUiStyles.statusColor(status)
+        // 同步更新左侧 accent 色条
+        ToolWindowUiStyles.applyStatusStrip(statusStripPanel, status)
+        statusStripPanel.repaint()
     }
 
     private fun createIconButton(tooltip: String, icon: Icon): JButton =
@@ -931,6 +908,14 @@ class MethodInvokeToolWindowPanel(
 
     internal fun hasScrollableFormContent(): Boolean = formScrollPane.viewport.view === formContentPanel
 
+    internal fun applyPhpRuntimeOptionsForTest(runtimes: List<DetectedPhpRuntime>, preferredCommand: String) {
+        applyPhpRuntimeOptions(runtimes, preferredCommand)
+    }
+
+    internal fun phpRuntimeEditorTextForTest(): String = phpExecutableEditor().text
+
+    internal fun currentPhpCommandForTest(): String = currentPhpCommand()
+
     internal fun hasWorkbenchSectionTitles(): Boolean = true
 
     internal fun hasSummaryAndResultSections(): Boolean = true
@@ -947,6 +932,61 @@ private object MainContentCard {
 private object BottomPanelCard {
     const val RESULT = "result"
     const val EDITOR = "editor"
+}
+
+private sealed class PhpRuntimeComboItem {
+    abstract val command: String
+    abstract val primaryText: String
+    abstract val secondaryText: String
+    abstract val selectedText: String
+    abstract val displayText: String
+
+    data class Detected(private val runtime: DetectedPhpRuntime) : PhpRuntimeComboItem() {
+        override val command: String = runtime.command
+        override val primaryText: String = if (runtime.version.isBlank()) "PHP" else "PHP ${runtime.version}"
+        override val secondaryText: String = runtime.command
+        override val selectedText: String = primaryText
+        override val displayText: String = runtime.displayName
+    }
+
+    data class Custom(override val command: String) : PhpRuntimeComboItem() {
+        override val primaryText: String = command
+        override val secondaryText: String = "手动输入"
+        override val selectedText: String = command
+        override val displayText: String = command
+    }
+
+    override fun toString(): String = command
+}
+
+private class PhpRuntimeComboRenderer : JPanel(BorderLayout()), ListCellRenderer<PhpRuntimeComboItem> {
+    private val primaryLabel = JBLabel()
+    private val secondaryLabel = JBLabel()
+
+    init {
+        isOpaque = true
+        border = JBUI.Borders.empty(6, 10)
+        primaryLabel.font = primaryLabel.font.deriveFont(Font.BOLD)
+        secondaryLabel.font = secondaryLabel.font.deriveFont((secondaryLabel.font.size2D - 1f).coerceAtLeast(10f))
+        add(primaryLabel, BorderLayout.NORTH)
+        add(secondaryLabel, BorderLayout.CENTER)
+    }
+
+    override fun getListCellRendererComponent(
+        list: JList<out PhpRuntimeComboItem>,
+        value: PhpRuntimeComboItem?,
+        index: Int,
+        isSelected: Boolean,
+        cellHasFocus: Boolean,
+    ): Component {
+        val item = value ?: PhpRuntimeComboItem.Custom("")
+        primaryLabel.text = item.primaryText
+        secondaryLabel.text = item.secondaryText
+        background = if (isSelected) list.selectionBackground else list.background
+        primaryLabel.foreground = if (isSelected) list.selectionForeground else list.foreground
+        secondaryLabel.foreground = if (isSelected) list.selectionForeground else ToolWindowUiStyles.idleTextColor()
+        return this
+    }
 }
 
 private object MethodInvokeActionIcons {

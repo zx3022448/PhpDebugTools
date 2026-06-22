@@ -8,12 +8,12 @@ import java.awt.BorderLayout
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JComponent
-import javax.swing.JTabbedPane
+import com.intellij.ui.components.JBTabbedPane
 
 class PhpDebugToolsToolWindowPanel(
-    private val tabs: JTabbedPane,
+    private val tabs: JBTabbedPane = JBTabbedPane(),
     project: Project? = null,
-) : JComponent() {
+) : JBPanel<PhpDebugToolsToolWindowPanel>(BorderLayout()) {
     private val overviewTitleLabel = JBLabel(PhpDebugToolsBundle.message("toolwindow.overview.section.summary"))
     private val projectSummaryLabel = JBLabel()
     private val runtimeSummaryLabel = JBLabel()
@@ -24,7 +24,7 @@ class PhpDebugToolsToolWindowPanel(
             JBPanel<JBPanel<*>>().apply {
                 layout = BoxLayout(this, BoxLayout.Y_AXIS)
                 isOpaque = false
-                overviewTitleLabel.font = overviewTitleLabel.font.deriveFont(java.awt.Font.BOLD)
+                ToolWindowUiStyles.applyTitleLabel(overviewTitleLabel)
                 add(overviewTitleLabel)
                 add(Box.createVerticalStrut(8))
                 add(projectSummaryLabel.also(ToolWindowUiStyles::applyMutedLabel))
@@ -42,7 +42,11 @@ class PhpDebugToolsToolWindowPanel(
     val methodInvokeComponent: JComponent = methodInvokePanel
 
     init {
-        layout = BorderLayout()
+        ToolWindowUiStyles.applyWorkbenchSurface(this)
+        buildToolWindowTabs(this).forEach { tab ->
+            tabs.addTab(tab.title, tab.component)
+        }
+        selectDefaultToolWindowTab(tabs)
         add(tabs, BorderLayout.CENTER)
         updateWorkspace(buildLazyToolWindowWorkspaceState())
     }
@@ -58,4 +62,6 @@ class PhpDebugToolsToolWindowPanel(
     }
 
     internal fun hasOverviewCard(): Boolean = summaryPanel.parent != null
+
+    internal fun selectedToolWindowComponent(): JComponent? = tabs.selectedComponent as? JComponent
 }
