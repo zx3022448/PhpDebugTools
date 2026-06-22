@@ -30,7 +30,7 @@ internal class ServiceMethodInputPanel(
     private val argsTextArea = JBTextArea("[]")
 
     init {
-        isOpaque = false
+        ToolWindowUiStyles.applyInnerSurface(this)
         if (parameterEditors.isEmpty()) {
             argsTextArea.minimumSize = Dimension(360, 160)
             ToolWindowUiStyles.applyResultArea(argsTextArea)

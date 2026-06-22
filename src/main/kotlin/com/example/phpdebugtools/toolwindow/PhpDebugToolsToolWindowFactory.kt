@@ -3,6 +3,7 @@ package com.example.phpdebugtools.toolwindow
 import com.example.phpdebugtools.PhpDebugToolsBundle
 import com.example.phpdebugtools.runtime.RuntimeInstaller
 import com.example.phpdebugtools.runtime.RuntimeInstallOptions
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.diagnostic.Logger
@@ -12,6 +13,7 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.content.ContentFactory
+import com.intellij.ui.jcef.JBCefApp
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.JComponent
@@ -21,32 +23,62 @@ class PhpDebugToolsToolWindowFactory : ToolWindowFactory, DumbAware {
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         logger.info("Creating PhpDebugTools tool window content for project '${project.name}'")
-        val panel = PhpDebugToolsToolWindowPanel(project = project)
+        val binding = createToolWindowBinding(project)
         project.basePath?.let { projectBasePath ->
-            updateWorkspaceInBackground(panel, Path.of(projectBasePath))
+            updateWorkspaceInBackground(binding.workspaceConsumer, Path.of(projectBasePath))
         }
-        val content = ContentFactory.getInstance().createContent(panel, PhpDebugToolsBundle.message("toolwindow.title"), false)
+        val content = ContentFactory.getInstance().createContent(
+            binding.component,
+            PhpDebugToolsBundle.message("toolwindow.title"),
+            false,
+        )
+        binding.disposable?.let(content::setDisposer)
         toolWindow.contentManager.addContent(content)
     }
 
     private companion object {
         private val logger = Logger.getInstance(PhpDebugToolsToolWindowFactory::class.java)
 
-        private fun updateWorkspaceInBackground(panel: PhpDebugToolsToolWindowPanel, projectRoot: Path) {
+        private fun createToolWindowBinding(project: Project): ToolWindowBinding {
+            if (JBCefApp.isSupported()) {
+                val panel = PhpDebugToolsJcefToolWindowPanel(project)
+                return ToolWindowBinding(
+                    component = panel,
+                    workspaceConsumer = panel::updateWorkspace,
+                    disposable = panel,
+                )
+            }
+
+            val panel = PhpDebugToolsToolWindowPanel(project = project)
+            return ToolWindowBinding(
+                component = panel,
+                workspaceConsumer = panel::updateWorkspace,
+                disposable = null,
+            )
+        }
+
+        private fun updateWorkspaceInBackground(
+            workspaceConsumer: (ToolWindowWorkspaceState) -> Unit,
+            projectRoot: Path,
+        ) {
             ApplicationManager.getApplication().executeOnPooledThread {
                 // runCatching 确保后台异常不会让 UI 停在空白状态
                 val state = runCatching { buildToolWindowWorkspaceState(projectRoot) }
                     .getOrElse { buildLazyToolWindowWorkspaceState() }
                 // ModalityState.any() 确保启动期间的模态状态不阻塞此回调
                 ApplicationManager.getApplication().invokeLater({
-                    panel.updateWorkspace(state)
-                    panel.revalidate()
-                    panel.repaint()
+                    workspaceConsumer(state)
                 }, ModalityState.any())
             }
         }
     }
 }
+
+private data class ToolWindowBinding(
+    val component: JComponent,
+    val workspaceConsumer: (ToolWindowWorkspaceState) -> Unit,
+    val disposable: Disposable?,
+)
 
 private const val DEFAULT_TOOL_WINDOW_TAB_INDEX = 1
 

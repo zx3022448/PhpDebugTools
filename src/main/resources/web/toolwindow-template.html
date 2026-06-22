@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PHP Debug Tools</title>
+  <style>
+    :root {
+      --bg: #1a1a1f;
+      --bg-deep: #0a1018;
+      --panel: #1f1f24;
+      --panel-soft: #24242a;
+      --line: #34343c;
+      --line-soft: #2b2b33;
+      --text: #f5f7fb;
+      --muted: #a1a6b2;
+      --dim: #727782;
+      --blue: #1683ff;
+      --blue-soft: rgba(22,131,255,.18);
+      --yellow: #f6c915;
+      --green: #2ecc71;
+      --red: #ff6b6b;
+      --shadow: 0 20px 60px rgba(0, 0, 0, .28);
+      --radius-shell: 18px;
+      --radius-card: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111318;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    button, input, textarea {
+      font: inherit;
+      color: inherit;
+    }
+
+    body {
+      padding: 6px;
+    }
+
+    .shell {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      background: linear-gradient(180deg, #1b1c22 0%, #18191e 100%);
+      border: 1px solid #2d2f38;
+      border-radius: var(--radius-shell);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .title-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .title-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .title-icon.primary {
+      background: rgba(22,131,255,.18);
+      color: #67b0ff;
+    }
+
+    .title-icon:hover,
+    .refresh-btn:hover,
+    .output-tool:hover {
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+    }
+
+    .title-icon.primary:hover {
+      background: rgba(22,131,255,.22);
+    }
+
+    .title-icon svg,
+    .workbench-chip svg,
+    .refresh-btn svg,
+    .send-btn svg,
+    .output-tool svg,
+    .output-tab svg,
+    .output-meta svg,
+    .brand-logo svg,
+    .field-wrap.search svg,
+    .dropdown-trigger svg,
+    .runtime-pill svg {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 auto;
+      pointer-events: none;
+    }
+
+    .brand-logo svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .brand-row {
+      padding: 14px 18px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px solid var(--line-soft);
+      background: rgba(0, 0, 0, .08);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 11px;
+      display: grid;
+      place-items: center;
+      background: #1683ff;
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(22,131,255,.3);
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 2px;
+    }
+
+    .brand small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .brand-side {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .workbench-chip {
+      min-height: 36px;
+      padding: 0 16px;
+      border-radius: 10px;
+      background: #2b2d35;
+      border: 1px solid var(--line);
+      color: #f3f6fb;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .workspace {
+      min-height: 0;
+      overflow: auto;
+      padding: 14px 18px 18px;
+    }
+
+    .eyebrow {
+      color: #b8bec8;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+
+    .hero {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .hero h1 {
+      margin: 6px 0 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .runtime-pill {
+      min-height: 36px;
+      padding: 0 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #23252d;
+      color: #d7dde7;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      white-space: nowrap;
+      min-width: 190px;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .runtime-input {
+      flex: 1 1 auto;
+      min-width: 0;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: #d7dde7;
+      padding: 0;
+    }
+
+    .request-card {
+      display: grid;
+      gap: 16px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: var(--radius-card);
+      padding: 18px;
+    }
+
+    .request-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .request-head h2 {
+      margin: 4px 0 0;
+      font-size: 16px;
+    }
+
+    .refresh-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      border: none;
+      background: transparent;
+      color: #a4adbb;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) 88px 50px;
+      gap: 10px;
+    }
+
+    .field-wrap {
+      min-height: 42px;
+      padding: 0 14px;
+      border-radius: 12px;
+      border: 1px solid #464954;
+      background: #262830;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      min-width: 0;
+    }
+
+    .field-wrap .prefix {
+      color: #9aa1ad;
+      font-weight: 700;
+      flex: 0 0 auto;
+    }
+
+    .field-input,
+    .field-textarea {
+      width: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+    }
+
+    .field-wrap.method {
+      color: #edf2fa;
+      font-weight: 600;
+    }
+
+    .send-btn {
+      min-height: 42px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(180deg, #2490ff 0%, #0d78f2 100%);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 12px 20px rgba(22,131,255,.28);
+      cursor: pointer;
+    }
+
+    .send-btn:disabled {
+      opacity: .55;
+      cursor: progress;
+    }
+
+    .tabs, .subtabs, .body-mode-tabs {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      min-height: 36px;
+      padding: 0 4px;
+      border: none;
+      background: transparent;
+      color: #afb5bf;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      padding: 0 16px;
+      background: var(--blue-soft);
+      color: #4da6ff;
+    }
+
+    .content-panel {
+      border-top: 1px solid var(--line-soft);
+      padding-top: 14px;
+    }
+
+    .subtab, .mode-tab {
+      min-height: 30px;
+      padding: 0 12px;
+      border: none;
+      border-radius: 999px;
+      background: transparent;
+      color: #c8ced8;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .subtab.active, .mode-tab.active {
+      background: var(--blue-soft);
+      color: #4da6ff;
+    }
+
+    .subtab .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 6px;
+      margin-left: 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      font-size: 11px;
+    }
+
+    .table-toolbar {
+      display: flex;
+      gap: 10px;
+      margin: 14px 0 12px;
+    }
+
+    .toolbar-btn {
+      min-height: 40px;
+      padding: 0 16px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #24262d;
+      color: #e5ebf5;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .toolbar-btn .icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.18);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .table-shell {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #202228;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line-soft);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    th {
+      background: #2a2a31;
+      color: #c3c8d3;
+      font-weight: 700;
+    }
+
+    td {
+      color: #edf1f7;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr.selected {
+      background: rgba(22,131,255,.08);
+    }
+
+    .cell-input, .json-editor {
+      width: 100%;
+      min-height: 34px;
+      border-radius: 10px;
+      border: 1px solid #3a3e48;
+      background: #262830;
+      color: #edf1f7;
+      padding: 6px 10px;
+      outline: none;
+    }
+
+    .json-editor {
+      min-height: 180px;
+      resize: vertical;
+      font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      line-height: 1.6;
+    }
+
+    .helper-text {
+      color: #b1b8c4;
+      line-height: 1.75;
+      font-size: 13px;
+    }
+
+    .meta-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .meta-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #232329;
+      padding: 14px;
+    }
+
+    .execution-card {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      background: #232329;
+      border-radius: var(--radius-card);
+      padding: 16px;
+    }
+
+    .status-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 8px;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .orb {
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: var(--yellow);
+      box-shadow: 0 0 0 8px rgba(246,201,21,.14);
+      flex: 0 0 auto;
+    }
+
+    .orb.running {
+      background: var(--blue);
+      box-shadow: 0 0 0 8px rgba(22,131,255,.14);
+    }
+
+    .orb.success {
+      background: var(--green);
+      box-shadow: 0 0 0 8px rgba(46,204,113,.14);
+    }
+
+    .orb.error {
+      background: var(--red);
+      box-shadow: 0 0 0 8px rgba(255,107,107,.14);
+    }
+
+    .status-sub {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metrics-row {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric-card {
+      min-height: 82px;
+      border: 1px solid var(--line);
+      background: #232329;
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      align-content: start;
+      gap: 6px;
+    }
+
+    .metric-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 1px solid #3f91ff;
+      color: #3f91ff;
+      font-size: 10px;
+      display: inline-grid;
+      place-items: center;
+    }
+
+    .metric-label {
+      color: #abb2be;
+      font-size: 12px;
+    }
+
+    .metric-value {
+      font-size: 15px;
+      font-weight: 800;
+      color: #f8faff;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+
+    .output-card {
+      margin-top: 12px;
+      border: 1px solid #1f3146;
+      background: var(--bg-deep);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .output-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #1c2734;
+    }
+
+    .output-tabs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .output-tab {
+      min-height: 34px;
+      padding: 0 14px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      background: transparent;
+      color: #ccd4df;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .output-tab.active {
+      background: #ffffff;
+      color: #161a21;
+    }
+
+    .output-tools {
+      display: flex;
+      gap: 4px;
+    }
+
+    .output-tool {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 999px;
+      background: transparent;
+      color: #a8b2bf;
+      display: grid;
+      place-items: center;
+      opacity: .86;
+      cursor: pointer;
+    }
+
+    .output-meta {
+      display: flex;
+      gap: 18px;
+      padding: 10px 14px;
+      border-bottom: 1px solid #1c2734;
+      color: #90c086;
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+
+    .output-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    pre {
+      margin: 0;
+      padding: 18px 16px 20px;
+      color: #c6efad;
+      font-size: 13px;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow: auto;
+      min-height: 220px;
+      font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+    }
+
+    .dropdown-anchor {
+      flex: 1 1 auto;
+      min-width: 0;
+      position: relative;
+    }
+
+    .dropdown-trigger {
+      width: 100%;
+      min-height: 24px;
+      border: none;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      padding: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .dropdown-trigger .dropdown-label {
+      display: block;
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dropdown-trigger .dropdown-icon {
+      color: #8d94a0;
+    }
+
+    .dropdown-trigger .dropdown-leading {
+      color: #29d15f;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      left: auto;
+      min-width: 100%;
+      width: max-content;
+      max-width: min(560px, calc(100vw - 36px));
+      background: #202229;
+      border: 1px solid #3a3f4b;
+      border-radius: 14px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, .36);
+      padding: 8px;
+      display: none;
+      z-index: 20;
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    .dropdown-anchor.open .dropdown-menu,
+    .runtime-pill.open .dropdown-menu {
+      display: block;
+    }
+
+    .dropdown-option {
+      width: 100%;
+      min-width: max-content;
+      border: none;
+      background: transparent;
+      color: #e8edf6;
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: block;
+      white-space: nowrap;
+    }
+
+    .dropdown-option:hover,
+    .dropdown-option.active {
+      background: rgba(22,131,255,.14);
+      color: #61adff;
+    }
+
+    .dropdown-option small {
+      display: block;
+      margin-top: 4px;
+      color: #8f97a4;
+      font-size: 11px;
+    }
+
+    .cell-dropdown {
+      position: relative;
+    }
+
+    .cell-dropdown-trigger {
+      width: 100%;
+      min-height: 34px;
+      border-radius: 10px;
+      border: 1px solid #3a3e48;
+      background: #262830;
+      color: #edf1f7;
+      padding: 6px 10px;
+      text-align: left;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .cell-dropdown-trigger::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      right: 12px;
+      margin: auto 0;
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid #8d94a0;
+      border-bottom: 2px solid #8d94a0;
+      transform: rotate(45deg);
+    }
+
+    .cell-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: #202229;
+      border: 1px solid #3a3f4b;
+      border-radius: 12px;
+      box-shadow: 0 16px 30px rgba(0, 0, 0, .34);
+      padding: 6px;
+      display: none;
+      z-index: 18;
+    }
+
+    .cell-dropdown.open .cell-dropdown-menu {
+      display: block;
+    }
+
+    .cell-dropdown-option {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: #edf1f7;
+      text-align: left;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .cell-dropdown-option:hover,
+    .cell-dropdown-option.active {
+      background: rgba(22,131,255,.14);
+      color: #61adff;
+    }
+
+    @media (max-width: 640px) {
+      .hero {
+        flex-direction: column;
+      }
+
+      .controls,
+      .metrics-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="brand-row">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m18 16 4-4-4-4"></path>
+            <path d="m6 8-4 4 4 4"></path>
+            <path d="m14.5 4-5 16"></path>
+          </svg>
+        </div>
+        <div>
+          <strong>PHP Debug Tools</strong>
+          <small>Local runtime ready</small>
+        </div>
+      </div>
+      <div class="brand-side">
+        <div class="title-actions">
+          <button class="title-icon primary" type="button" aria-label="切换主题">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2"></path>
+              <path d="M12 20v2"></path>
+              <path d="m4.93 4.93 1.41 1.41"></path>
+              <path d="m17.66 17.66 1.41 1.41"></path>
+              <path d="M2 12h2"></path>
+              <path d="M20 12h2"></path>
+              <path d="m6.34 17.66-1.41 1.41"></path>
+              <path d="m19.07 4.93-1.41 1.41"></path>
+            </svg>
+          </button>
+          <button class="title-icon refresh" type="button" aria-label="刷新插件状态">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+              <path d="M21 3v5h-5"></path>
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+              <path d="M8 16H3v5"></path>
+            </svg>
+          </button>
+          <button class="title-icon tune" type="button" aria-label="插件设置">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 17H5"></path>
+              <path d="M19 7h-9"></path>
+              <circle cx="17" cy="17" r="3"></circle>
+              <circle cx="7" cy="7" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+        <div class="workbench-chip">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 14 4-4"></path>
+            <path d="M3.34 19a10 10 0 1 1 17.32 0"></path>
+          </svg>
+          <span>工作台</span>
+        </div>
+      </div>
+    </div>
+    <div class="workspace">
+      <div class="eyebrow">调试工作台</div>
+      <div class="hero">
+        <h1>选择方法，配置请求并执行</h1>
+        <div class="runtime-pill" id="runtime-dropdown"></div>
+      </div>
+
+      <div class="request-card">
+        <div class="request-head">
+          <div>
+            <div class="eyebrow">TARGET</div>
+            <h2>方法与运行环境</h2>
+          </div>
+          <button class="refresh-btn" id="refresh-button" aria-label="refresh">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+              <path d="M21 3v5h-5"></path>
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+              <path d="M8 16H3v5"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="controls">
+          <label class="field-wrap search">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m21 21-4.34-4.34"></path>
+              <circle cx="11" cy="11" r="8"></circle>
+            </svg>
+            <input class="field-input" id="search-input" placeholder="搜索类、方法、命名空间">
+          </label>
+          <div class="field-wrap method select">
+            <div class="dropdown-anchor" id="method-dropdown"></div>
+          </div>
+          <div class="field-wrap select">
+            <div class="dropdown-anchor" id="request-method-dropdown"></div>
+          </div>
+          <button class="send-btn" id="execute-button" aria-label="execute">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path>
+              <path d="m21.854 2.147-10.94 10.939"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="tabs" id="top-tabs"></div>
+
+        <div class="content-panel" id="content-panel"></div>
+      </div>
+
+      <div class="output-card">
+        <div class="output-head">
+          <div class="output-tabs" id="output-tabs"></div>
+          <div class="output-tools">
+            <button class="output-tool copy" id="copy-output" type="button" aria-label="复制结果">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+              </svg>
+            </button>
+            <button class="output-tool tune" type="button" aria-label="输出设置">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 17H5"></path>
+                <path d="M19 7h-9"></path>
+                <circle cx="17" cy="17" r="3"></circle>
+                <circle cx="7" cy="7" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="output-meta">
+          <span id="output-status"></span>
+          <span id="output-runtime"></span>
+        </div>
+        <pre id="output-text"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const initialState = __STATE_JSON__;
+
+    const ICON_PATHS = {
+      sun: `
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2"></path>
+        <path d="M12 20v2"></path>
+        <path d="m4.93 4.93 1.41 1.41"></path>
+        <path d="m17.66 17.66 1.41 1.41"></path>
+        <path d="M2 12h2"></path>
+        <path d="M20 12h2"></path>
+        <path d="m6.34 17.66-1.41 1.41"></path>
+        <path d="m19.07 4.93-1.41 1.41"></path>
+      `,
+      chevronDown: `<path d="m6 9 6 6 6-6"></path>`,
+      circleDot: `
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="1"></circle>
+      `,
+      clock3: `
+        <path d="M12 6v6h4"></path>
+        <circle cx="12" cy="12" r="10"></circle>
+      `,
+      codeXml: `
+        <path d="m18 16 4-4-4-4"></path>
+        <path d="m6 8-4 4 4 4"></path>
+        <path d="m14.5 4-5 16"></path>
+      `,
+      copy: `
+        <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+        <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+      `,
+      fileBracesCorner: `
+        <path d="M14 22h4a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v6"></path>
+        <path d="M14 2v5a1 1 0 0 0 1 1h5"></path>
+        <path d="M5 14a1 1 0 0 0-1 1v2a1 1 0 0 1-1 1 1 1 0 0 1 1 1v2a1 1 0 0 0 1 1"></path>
+        <path d="M9 22a1 1 0 0 0 1-1v-2a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-2a1 1 0 0 0-1-1"></path>
+      `,
+      gauge: `
+        <path d="m12 14 4-4"></path>
+        <path d="M3.34 19a10 10 0 1 1 17.32 0"></path>
+      `,
+      refreshCw: `
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+        <path d="M21 3v5h-5"></path>
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+        <path d="M8 16H3v5"></path>
+      `,
+      search: `
+        <path d="m21 21-4.34-4.34"></path>
+        <circle cx="11" cy="11" r="8"></circle>
+      `,
+      send: `
+        <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path>
+        <path d="m21.854 2.147-10.94 10.939"></path>
+      `,
+      settings2: `
+        <path d="M14 17H5"></path>
+        <path d="M19 7h-9"></path>
+        <circle cx="17" cy="17" r="3"></circle>
+        <circle cx="7" cy="7" r="3"></circle>
+      `
+    };
+
+    function renderIcon(name, size = 15, className = '') {
+      return `
+        <svg class="${className}" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          ${ICON_PATHS[name] || ''}
+        </svg>
+      `;
+    }
+
+    function invokeReady(payload) {
+      return new Promise((resolve, reject) => {
+        const onSuccess = response => resolve(response || "");
+        const onError = (code, message) => reject(new Error(message || String(code)));
+        __READY_QUERY__
+      });
+    }
+
+    function invokeRefresh(payload) {
+      return new Promise((resolve, reject) => {
+        const onSuccess = response => resolve(response || "");
+        const onError = (code, message) => reject(new Error(message || String(code)));
+        __REFRESH_QUERY__
+      });
+    }
+
+    function invokeExecute(payload) {
+      return new Promise((resolve, reject) => {
+        const onSuccess = response => resolve(response || "");
+        const onError = (code, message) => reject(new Error(message || String(code)));
+        __EXECUTE_QUERY__
+      });
+    }
+
+    const TOP_TABS = [
+      { id: 'overview', label: '概览' },
+      { id: 'params', label: '参数' },
+      { id: 'path', label: '路径' },
+      { id: 'query', label: '请求体' },
+      { id: 'script', label: '脚本' }
+    ];
+
+    const REQUEST_TABS = [
+      { id: 'query', label: 'Query' },
+      { id: 'body', label: 'Body' },
+      { id: 'headers', label: 'Headers' }
+    ];
+
+    const BODY_MODES = [
+      { id: 'none', label: 'none' },
+      { id: 'form-data', label: 'form-data' },
+      { id: 'x-www-form-urlencoded', label: 'x-www-form-urlencoded' },
+      { id: 'json', label: 'JSON' }
+    ];
+
+    const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+    const VALUE_TYPES = ['string', 'integer', 'number', 'boolean', 'array', 'object'];
+
+    const store = {
+      data: initialState,
+      searchKeyword: '',
+      activeTab: 'query',
+      activeRequestTab: 'query',
+      activeOutputTab: 'result',
+      selectedRowKey: null,
+      editor: null,
+      openDropdown: null
+    };
+
+    function cloneRows(rows) {
+      return (rows || []).map(row => ({ ...row }));
+    }
+
+    function escapeHtml(text) {
+      return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function currentMethods() {
+      return store.data.methods || [];
+    }
+
+    function currentMethod() {
+      return currentMethods().find(item => item.signature === store.data.selectedMethodSignature) || currentMethods()[0] || null;
+    }
+
+    function currentRuntime() {
+      return store.data.selectedRuntimeCommand || '';
+    }
+
+    function runtimePrimaryLabel(runtime) {
+      if (!runtime) {
+        return currentRuntime() || 'php';
+      }
+      const candidate = String(runtime.primaryText || '').trim();
+      if (candidate) {
+        const normalized = candidate.match(/PHP\s+\d+(?:\.\d+){0,2}/);
+        return normalized ? normalized[0] : candidate;
+      }
+      const fromLabel = String(runtime.label || '').match(/PHP\s+\d+(?:\.\d+){0,2}/);
+      return fromLabel ? fromLabel[0] : (runtime.label || currentRuntime() || 'php');
+    }
+
+    function filteredMethods() {
+      const keyword = store.searchKeyword.trim().toLowerCase();
+      if (!keyword) {
+        return currentMethods();
+      }
+      return currentMethods().filter(item =>
+        (item.searchableText || '').includes(keyword) ||
+        item.signature.toLowerCase().includes(keyword)
+      );
+    }
+
+    function buildEditorFromMethod(method) {
+      if (!method) {
+        return {
+          methodSignature: '',
+          runtimeCommand: currentRuntime(),
+          requestMethod: 'GET',
+          bodyMode: 'json',
+          queryRows: [],
+          headerRows: [],
+          bodyRows: [],
+          bodyJson: '{}',
+          argsJson: '[]'
+        };
+      }
+      return {
+        methodSignature: method.signature,
+        runtimeCommand: currentRuntime(),
+        requestMethod: method.requestMethod || 'GET',
+        bodyMode: method.bodyMode || 'json',
+        queryRows: cloneRows(method.queryRows),
+        headerRows: cloneRows(method.headerRows),
+        bodyRows: cloneRows(method.bodyRows),
+        bodyJson: method.bodyJsonTemplate || '{}',
+        argsJson: method.argsTemplate || '[]'
+      };
+    }
+
+    function ensureSelection(resetEditor = false) {
+      const methods = currentMethods();
+      if (!methods.length) {
+        store.data.selectedMethodSignature = '';
+        store.editor = buildEditorFromMethod(null);
+        return;
+      }
+      if (!methods.some(item => item.signature === store.data.selectedMethodSignature)) {
+        store.data.selectedMethodSignature = methods[0].signature;
+        resetEditor = true;
+      }
+      if (!store.data.selectedRuntimeCommand) {
+        store.data.selectedRuntimeCommand = (store.data.runtimes && store.data.runtimes[0] && store.data.runtimes[0].command) || 'php';
+      }
+      if (!store.editor || resetEditor || store.editor.methodSignature !== store.data.selectedMethodSignature) {
+        store.editor = buildEditorFromMethod(currentMethod());
+      }
+      syncRequestMethodSupport();
+    }
+
+    function syncRequestMethodSupport() {
+      const method = currentMethod();
+      if (!method || !store.editor) {
+        return;
+      }
+      const supportsBody = ['POST', 'PUT', 'PATCH'].includes(store.editor.requestMethod);
+      if (method.kind !== 'CONTROLLER') {
+        return;
+      }
+      if (!supportsBody) {
+        store.editor.bodyMode = 'none';
+      } else if (store.editor.bodyMode === 'none') {
+        store.editor.bodyMode = 'json';
+      }
+    }
+
+    function hydrate(nextState) {
+      const previousEditor = store.editor ? { ...store.editor } : null;
+      const previousMethodSignature = store.data.selectedMethodSignature;
+      store.data = nextState;
+      ensureSelection(previousMethodSignature !== store.data.selectedMethodSignature);
+      if (previousEditor && previousEditor.methodSignature === store.data.selectedMethodSignature) {
+        store.editor = {
+          ...previousEditor,
+          runtimeCommand: store.data.selectedRuntimeCommand || previousEditor.runtimeCommand
+        };
+      }
+      render();
+    }
+
+    window.__PHP_DEBUG_TOOLS__ = { hydrate };
+
+    function renderRuntimeInput() {
+      const runtime = (store.data.runtimes || []).find(item => item.command === currentRuntime()) || (store.data.runtimes || [])[0];
+      const container = document.getElementById('runtime-dropdown');
+      container.innerHTML = renderDropdown({
+        id: 'runtime',
+        value: runtime ? runtime.command : currentRuntime(),
+        label: runtimePrimaryLabel(runtime),
+        leadingIcon: renderIcon('circleDot', 13, 'dropdown-leading'),
+        options: (store.data.runtimes || []).map(item => ({
+          value: item.command,
+          label: item.label
+        }))
+      });
+      bindDropdown(container, 'runtime', value => {
+        store.data.selectedRuntimeCommand = value || 'php';
+        if (store.editor) {
+          store.editor.runtimeCommand = store.data.selectedRuntimeCommand;
+        }
+        render();
+      });
+    }
+
+    function renderControls() {
+      const searchInput = document.getElementById('search-input');
+      const executeButton = document.getElementById('execute-button');
+
+      searchInput.value = store.searchKeyword;
+      searchInput.oninput = () => {
+        store.searchKeyword = searchInput.value;
+        const visibleMethods = filteredMethods();
+        if (visibleMethods.length && !visibleMethods.some(item => item.signature === store.data.selectedMethodSignature)) {
+          store.data.selectedMethodSignature = visibleMethods[0].signature;
+          ensureSelection(true);
+        }
+        render();
+      };
+
+      const visibleMethods = filteredMethods();
+      const selectedMethodValue = visibleMethods.some(item => item.signature === store.data.selectedMethodSignature)
+        ? store.data.selectedMethodSignature
+        : (visibleMethods[0] ? visibleMethods[0].signature : '');
+      const methodContainer = document.getElementById('method-dropdown');
+      methodContainer.innerHTML = renderDropdown({
+        id: 'method',
+        value: selectedMethodValue,
+        label: (visibleMethods.find(item => item.signature === selectedMethodValue) || visibleMethods[0] || {}).displayName || '未找到方法',
+        options: visibleMethods.map(item => ({
+          value: item.signature,
+          label: item.displayName,
+          detail: `${item.kind} · 参数 ${item.parameterCount}`
+        }))
+      });
+      bindDropdown(methodContainer, 'method', value => {
+        store.data.selectedMethodSignature = value;
+        store.activeTab = currentMethod()?.kind === 'CONTROLLER' ? 'query' : 'params';
+        ensureSelection(true);
+        render();
+      });
+
+      const requestMethodContainer = document.getElementById('request-method-dropdown');
+      requestMethodContainer.innerHTML = renderDropdown({
+        id: 'request-method',
+        value: store.editor ? store.editor.requestMethod : 'GET',
+        label: store.editor ? store.editor.requestMethod : 'GET',
+        options: HTTP_METHODS.map(method => ({
+          value: method,
+          label: method
+        }))
+      });
+      bindDropdown(requestMethodContainer, 'request-method', value => {
+        if (!store.editor) return;
+        store.editor.requestMethod = value;
+        syncRequestMethodSupport();
+        render();
+      });
+
+      executeButton.disabled = !currentMethod() || (store.data.execution && store.data.execution.status === 'RUNNING');
+      executeButton.onclick = triggerExecute;
+      document.getElementById('refresh-button').onclick = triggerRefresh;
+    }
+
+    function renderTabs() {
+      const topTabs = document.getElementById('top-tabs');
+      topTabs.innerHTML = TOP_TABS.map(tab =>
+        `<button class="tab ${store.activeTab === tab.id ? 'active' : ''}" data-tab="${tab.id}">${tab.label}</button>`
+      ).join('');
+      topTabs.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          store.activeTab = tab.getAttribute('data-tab');
+          renderContent();
+          renderTabs();
+        });
+      });
+    }
+
+    function renderContent() {
+      const container = document.getElementById('content-panel');
+      const method = currentMethod();
+      if (!method) {
+        container.innerHTML = `<div class="helper-text">当前还没有可调试的方法，请点击右上角刷新重新扫描项目。</div>`;
+        return;
+      }
+
+      if (store.activeTab === 'overview') {
+        container.innerHTML = `
+          <div class="meta-list">
+            ${method.parameterLines.map(line => `<div class="meta-card helper-text">${escapeHtml(line)}</div>`).join('')}
+          </div>
+        `;
+        return;
+      }
+
+      if (store.activeTab === 'params') {
+        container.innerHTML = `
+          <div class="helper-text" style="margin-bottom:12px;">这里对应旧版参数编辑能力，直接修改将传给运行时的 args JSON。</div>
+          <textarea class="json-editor" id="args-json-editor">${escapeHtml(store.editor ? store.editor.argsJson : '[]')}</textarea>
+        `;
+        document.getElementById('args-json-editor').addEventListener('input', event => {
+          if (store.editor) {
+            store.editor.argsJson = event.target.value;
+          }
+        });
+        return;
+      }
+
+      if (store.activeTab === 'path') {
+        container.innerHTML = `
+          <div class="meta-list">
+            <div class="meta-card"><div class="eyebrow">类名</div><div class="helper-text">${escapeHtml(method.classFqn)}</div></div>
+            <div class="meta-card"><div class="eyebrow">方法</div><div class="helper-text">${escapeHtml(method.methodName)}</div></div>
+            <div class="meta-card"><div class="eyebrow">项目识别</div><div class="helper-text">${escapeHtml(store.data.projectSummary || '')}</div></div>
+            <div class="meta-card"><div class="eyebrow">运行时摘要</div><div class="helper-text">${escapeHtml(store.data.runtimeSummary || '')}</div></div>
+          </div>
+        `;
+        return;
+      }
+
+      if (store.activeTab === 'script') {
+        container.innerHTML = `
+          <div class="helper-text" style="margin-bottom:12px;">这里对应旧版脚本/预览区，展示本次执行前即将提交的有效载荷。</div>
+          <pre>${escapeHtml(buildPayloadPreview())}</pre>
+        `;
+        return;
+      }
+
+      container.innerHTML = renderRequestWorkbench(method);
+      bindRequestWorkbench();
+    }
+
+    function renderRequestWorkbench(method) {
+      if (method.kind !== 'CONTROLLER') {
+        return `
+          <div class="helper-text">
+            当前方法是服务方法，请使用“参数”标签页编辑 args JSON。
+            请求体、Header 和 Query 配置只会用于控制器方法。
+          </div>
+        `;
+      }
+
+      const queryCount = (store.editor?.queryRows || []).length;
+      const bodyCount = store.editor?.bodyMode === 'json'
+        ? 1
+        : (store.editor?.bodyRows || []).length;
+      const headerCount = (store.editor?.headerRows || []).length;
+
+      return `
+        <div class="subtabs" id="request-tabs">
+          ${REQUEST_TABS.map(tab => {
+            const count = tab.id === 'query' ? queryCount : (tab.id === 'body' ? bodyCount : headerCount);
+            return `<button class="subtab ${store.activeRequestTab === tab.id ? 'active' : ''}" data-request-tab="${tab.id}">${tab.label} <span class="badge">${count}</span></button>`;
+          }).join('')}
+        </div>
+        <div id="request-editor" style="margin-top:14px;"></div>
+      `;
+    }
+
+    function bindRequestWorkbench() {
+      document.querySelectorAll('[data-request-tab]').forEach(button => {
+        button.addEventListener('click', () => {
+          store.activeRequestTab = button.getAttribute('data-request-tab');
+          renderContent();
+        });
+      });
+      renderRequestEditor();
+    }
+
+    function renderRequestEditor() {
+      const editor = document.getElementById('request-editor');
+      if (!editor || !store.editor) {
+        return;
+      }
+      if (store.activeRequestTab === 'query') {
+        editor.innerHTML = renderEditableRows('queryRows');
+        bindEditableRows('queryRows');
+        return;
+      }
+      if (store.activeRequestTab === 'headers') {
+        editor.innerHTML = renderEditableRows('headerRows');
+        bindEditableRows('headerRows');
+        return;
+      }
+
+      const supportsBody = ['POST', 'PUT', 'PATCH'].includes(store.editor.requestMethod);
+      editor.innerHTML = `
+        <div class="body-mode-tabs" id="body-mode-tabs">
+          ${BODY_MODES.map(mode => `
+            <button class="mode-tab ${store.editor.bodyMode === mode.id ? 'active' : ''}" data-body-mode="${mode.id}" ${!supportsBody && mode.id !== 'none' ? 'disabled' : ''}>${mode.label}</button>
+          `).join('')}
+        </div>
+        <div id="body-mode-content" style="margin-top:14px;"></div>
+      `;
+      document.querySelectorAll('[data-body-mode]').forEach(button => {
+        button.addEventListener('click', () => {
+          if (!store.editor) return;
+          store.editor.bodyMode = button.getAttribute('data-body-mode');
+          renderContent();
+        });
+      });
+
+      const bodyContent = document.getElementById('body-mode-content');
+      if (!supportsBody || store.editor.bodyMode === 'none') {
+        bodyContent.innerHTML = `<div class="helper-text">当前请求方法不包含 Body，请切换到支持请求体的方法后再编辑。</div>`;
+      } else if (store.editor.bodyMode === 'json') {
+        bodyContent.innerHTML = `<textarea class="json-editor" id="body-json-editor">${escapeHtml(store.editor.bodyJson)}</textarea>`;
+        document.getElementById('body-json-editor').addEventListener('input', event => {
+          if (store.editor) {
+            store.editor.bodyJson = event.target.value;
+          }
+        });
+      } else {
+        bodyContent.innerHTML = renderEditableRows('bodyRows');
+        bindEditableRows('bodyRows');
+      }
+    }
+
+    function renderEditableRows(key) {
+      const rows = cloneRows(store.editor ? store.editor[key] : []);
+      return `
+        <div class="table-toolbar">
+          <button class="toolbar-btn" data-add-row="${key}"><span class="icon">+</span>添加参数</button>
+          <button class="toolbar-btn" data-remove-row="${key}"><span class="icon">-</span>删除选中</button>
+        </div>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>参数名</th>
+                <th>类型</th>
+                <th>示例值</th>
+                <th>说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map((row, index) => `
+                <tr class="${store.selectedRowKey === `${key}:${index}` ? 'selected' : ''}" data-row-select="${key}:${index}">
+                  <td><input class="cell-input" data-row-key="${key}" data-row-index="${index}" data-row-field="name" value="${escapeHtml(row.name)}"></td>
+                  <td>
+                    <div class="cell-dropdown ${store.openDropdown === `cell:${key}:${index}:type` ? 'open' : ''}" data-cell-dropdown="cell:${key}:${index}:type">
+                      <button
+                        class="cell-dropdown-trigger"
+                        type="button"
+                        data-cell-trigger="cell:${key}:${index}:type"
+                      >${escapeHtml(row.type)}</button>
+                      <div class="cell-dropdown-menu">
+                        ${VALUE_TYPES.map(type => `
+                          <button
+                            class="cell-dropdown-option ${row.type === type ? 'active' : ''}"
+                            type="button"
+                            data-cell-value="${escapeHtml(type)}"
+                            data-row-key="${key}"
+                            data-row-index="${index}"
+                            data-row-field="type"
+                            data-cell-dropdown-id="cell:${key}:${index}:type"
+                          >${escapeHtml(type)}</button>
+                        `).join('')}
+                      </div>
+                    </div>
+                  </td>
+                  <td><input class="cell-input" data-row-key="${key}" data-row-index="${index}" data-row-field="example" value="${escapeHtml(row.example)}"></td>
+                  <td><input class="cell-input" data-row-key="${key}" data-row-index="${index}" data-row-field="description" value="${escapeHtml(row.description)}"></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function bindEditableRows(key) {
+      document.querySelector(`[data-add-row="${key}"]`)?.addEventListener('click', () => {
+        if (!store.editor) return;
+        store.editor[key].push({ name: '', type: 'string', example: '', description: '' });
+        store.selectedRowKey = `${key}:${store.editor[key].length - 1}`;
+        renderContent();
+      });
+      document.querySelector(`[data-remove-row="${key}"]`)?.addEventListener('click', () => {
+        if (!store.editor || !store.selectedRowKey || !store.selectedRowKey.startsWith(`${key}:`)) return;
+        const index = Number(store.selectedRowKey.split(':')[1]);
+        if (!Number.isNaN(index)) {
+          store.editor[key].splice(index, 1);
+          store.selectedRowKey = null;
+          renderContent();
+        }
+      });
+
+      document.querySelectorAll('[data-row-select]').forEach(row => {
+        row.addEventListener('click', event => {
+          if (event.target.closest('input,select')) {
+            return;
+          }
+          store.selectedRowKey = row.getAttribute('data-row-select');
+          renderContent();
+        });
+      });
+
+      document.querySelectorAll(`[data-row-key="${key}"]`).forEach(input => {
+        input.addEventListener('input', handleRowFieldChange);
+        input.addEventListener('change', handleRowFieldChange);
+      });
+
+      document.querySelectorAll(`[data-cell-trigger^="cell:${key}:"]`).forEach(trigger => {
+        trigger.addEventListener('click', event => {
+          event.stopPropagation();
+          const id = trigger.getAttribute('data-cell-trigger');
+          store.openDropdown = store.openDropdown === id ? null : id;
+          renderContent();
+        });
+      });
+
+      document.querySelectorAll(`[data-cell-dropdown-id^="cell:${key}:"]`).forEach(option => {
+        option.addEventListener('click', event => {
+          event.stopPropagation();
+          const rowKey = option.getAttribute('data-row-key');
+          const rowIndex = Number(option.getAttribute('data-row-index'));
+          const field = option.getAttribute('data-row-field');
+          if (!store.editor || !rowKey || Number.isNaN(rowIndex) || !field || !store.editor[rowKey] || !store.editor[rowKey][rowIndex]) {
+            return;
+          }
+          store.editor[rowKey][rowIndex][field] = option.getAttribute('data-cell-value');
+          store.openDropdown = null;
+          renderContent();
+        });
+      });
+    }
+
+    function handleRowFieldChange(event) {
+      if (!store.editor) return;
+      const target = event.target;
+      const key = target.getAttribute('data-row-key');
+      const index = Number(target.getAttribute('data-row-index'));
+      const field = target.getAttribute('data-row-field');
+      if (!key || Number.isNaN(index) || !field || !store.editor[key] || !store.editor[key][index]) {
+        return;
+      }
+      store.editor[key][index][field] = target.value;
+    }
+
+    function renderDropdown({ id, value, label, options, leadingIcon = '' }) {
+      return `
+        <button class="dropdown-trigger" data-dropdown-trigger="${id}" type="button">
+          ${leadingIcon}
+          <span class="dropdown-label">${escapeHtml(label || '')}</span>
+          ${renderIcon('chevronDown', 15, 'dropdown-icon')}
+        </button>
+        <div class="dropdown-menu" data-dropdown-menu="${id}">
+          ${options.map(option => `
+            <button
+              class="dropdown-option ${option.value === value ? 'active' : ''}"
+              data-dropdown-value="${escapeHtml(option.value)}"
+              type="button"
+            >
+              ${escapeHtml(option.label)}
+              ${option.detail ? `<small>${escapeHtml(option.detail)}</small>` : ''}
+            </button>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function bindDropdown(container, id, onSelect) {
+      if (!container) return;
+      const anchor = container.classList.contains('dropdown-anchor') ? container : container.querySelector('.dropdown-anchor');
+      const root = anchor || container;
+      const clickTarget = root.closest('.field-wrap, .runtime-pill') || root;
+      const trigger = root.querySelector(`[data-dropdown-trigger="${id}"]`);
+      const menu = root.querySelector(`[data-dropdown-menu="${id}"]`);
+      if (!trigger || !menu) return;
+
+      if (store.openDropdown === id) {
+        root.classList.add('open');
+      } else {
+        root.classList.remove('open');
+      }
+
+      trigger.onclick = event => {
+        event.stopPropagation();
+        store.openDropdown = store.openDropdown === id ? null : id;
+        render();
+      };
+
+      clickTarget.onclick = event => {
+        if (event.target.closest('[data-dropdown-menu]') || event.target.closest('[data-dropdown-value]')) {
+          return;
+        }
+        if (event.target.closest('[data-dropdown-trigger]')) {
+          return;
+        }
+        event.stopPropagation();
+        store.openDropdown = store.openDropdown === id ? null : id;
+        render();
+      };
+
+      menu.querySelectorAll('[data-dropdown-value]').forEach(option => {
+        option.addEventListener('click', event => {
+          event.stopPropagation();
+          store.openDropdown = null;
+          onSelect(option.getAttribute('data-dropdown-value'));
+        });
+      });
+    }
+
+    function buildPayloadPreview() {
+      const method = currentMethod();
+      if (!method || !store.editor) {
+        return '{}';
+      }
+      const bodyValue = method.kind !== 'CONTROLLER'
+        ? {}
+        : (
+          store.editor.bodyMode === 'json'
+            ? safeParseJson(store.editor.bodyJson, {})
+            : rowsToObject(store.editor.bodyRows)
+        );
+      return JSON.stringify({
+        method: method.signature,
+        kind: method.kind,
+        runtime: store.data.selectedRuntimeCommand,
+        requestMethod: store.editor.requestMethod,
+        bodyMode: store.editor.bodyMode,
+        query: rowsToObject(store.editor.queryRows),
+        headers: rowsToObject(store.editor.headerRows),
+        body: bodyValue,
+        args: safeParseJson(store.editor.argsJson, store.editor.argsJson)
+      }, null, 2);
+    }
+
+    function rowsToObject(rows) {
+      const result = {};
+      (rows || []).forEach(row => {
+        if (row.name && row.name.trim()) {
+          result[row.name.trim()] = castRowValue(row);
+        }
+      });
+      return result;
+    }
+
+    function castRowValue(row) {
+      const value = String(row.example ?? '').trim();
+      switch ((row.type || 'string').toLowerCase()) {
+        case 'integer':
+          return Number.parseInt(value || '0', 10) || 0;
+        case 'number':
+          return Number.parseFloat(value || '0') || 0;
+        case 'boolean':
+          return value === 'true' || value === '1';
+        case 'array':
+        case 'object':
+          return safeParseJson(value || (row.type === 'array' ? '[]' : '{}'), row.type === 'array' ? [] : {});
+        default:
+          return value;
+      }
+    }
+
+    function safeParseJson(value, fallback) {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return fallback;
+      }
+    }
+
+    function renderExecution() {
+      const execution = store.data.execution || {};
+      document.getElementById('output-status').innerHTML = `${renderIcon('circleDot', 12)}${escapeHtml(execution.outputStatus || 'status: waiting')}`;
+      document.getElementById('output-runtime').innerHTML = execution.outputRuntime
+        ? `${renderIcon('clock3', 12)}${escapeHtml(execution.outputRuntime)}`
+        : '';
+      document.getElementById('output-text').textContent = store.activeOutputTab === 'result'
+        ? (execution.outputText || '')
+        : buildPayloadPreview();
+    }
+
+    function renderOutputTabs() {
+      const outputTabs = document.getElementById('output-tabs');
+      outputTabs.innerHTML = `
+        <button class="output-tab ${store.activeOutputTab === 'result' ? 'active' : ''}" data-output-tab="result" type="button">${renderIcon('fileBracesCorner', 14)}执行结果</button>
+        <button class="output-tab ${store.activeOutputTab === 'payload' ? 'active' : ''}" data-output-tab="payload" type="button">${renderIcon('codeXml', 14)}参数</button>
+      `;
+      outputTabs.querySelectorAll('[data-output-tab]').forEach(tab => {
+        tab.addEventListener('click', () => {
+          store.activeOutputTab = tab.getAttribute('data-output-tab');
+          renderExecution();
+          renderOutputTabs();
+        });
+      });
+    }
+
+    async function triggerRefresh() {
+      try {
+        await invokeRefresh({ source: 'toolbar' });
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    async function triggerExecute() {
+      const method = currentMethod();
+      if (!method || !store.editor) {
+        return;
+      }
+      const payload = {
+        methodSignature: method.signature,
+        phpCommand: store.data.selectedRuntimeCommand || 'php',
+        requestMethod: store.editor.requestMethod,
+        bodyMode: store.editor.bodyMode,
+        argsJson: store.editor.argsJson,
+        bodyJson: store.editor.bodyJson,
+        queryRows: store.editor.queryRows,
+        headerRows: store.editor.headerRows,
+        bodyRows: store.editor.bodyRows
+      };
+      try {
+        await invokeExecute(payload);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    function render() {
+      ensureSelection();
+      renderRuntimeInput();
+      renderControls();
+      renderTabs();
+      renderContent();
+      renderOutputTabs();
+      renderExecution();
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      ensureSelection(true);
+      render();
+      document.addEventListener('click', () => {
+        if (store.openDropdown !== null) {
+          store.openDropdown = null;
+          render();
+        }
+      });
+      document.getElementById('copy-output').addEventListener('click', () => {
+        const text = document.getElementById('output-text').textContent || '';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).catch(() => {});
+        }
+      });
+      try {
+        await invokeReady({ page: 'toolwindow' });
+      } catch (error) {
+        console.error(error);
+      }
+    });
+  </script>
+</body>
+</html>

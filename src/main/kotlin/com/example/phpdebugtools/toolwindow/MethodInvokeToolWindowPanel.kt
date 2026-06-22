@@ -25,7 +25,6 @@ import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
-import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
@@ -33,6 +32,7 @@ import java.awt.CardLayout
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.Font
+import java.awt.FlowLayout
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.Box
@@ -45,7 +45,6 @@ import javax.swing.Icon
 import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.JTextField
-import javax.swing.JTabbedPane
 import javax.swing.ListCellRenderer
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
@@ -78,6 +77,16 @@ class MethodInvokeToolWindowPanel(
     private val signatureLabel = JBLabel()
     private val metaLabel = JBLabel()
     private val statusLabel = JBLabel()
+    private val statusOrb = JBPanel<JBPanel<*>>()
+    private val workspaceLabel = JBLabel(PhpDebugToolsBundle.message("toolwindow.methodInvoke.workspace.label"))
+    private val workspaceTitleLabel = JBLabel(PhpDebugToolsBundle.message("toolwindow.methodInvoke.workspace.title"))
+    private val workspaceEnvironmentLabel = JBLabel(PhpDebugToolsBundle.message("toolwindow.methodInvoke.metric.unknown"))
+    private val requestBuilderLabel = JBLabel(PhpDebugToolsBundle.message("toolwindow.methodInvoke.workspace.requestLabel"))
+    private val requestBuilderTitleLabel = JBLabel(PhpDebugToolsBundle.message("toolwindow.methodInvoke.workspace.requestTitle"))
+    private val statusCardLabel = JBLabel(PhpDebugToolsBundle.message("toolwindow.methodInvoke.workspace.statusLabel"))
+    private val metricProjectValueLabel = JBLabel(PhpDebugToolsBundle.message("toolwindow.methodInvoke.metric.unknown"))
+    private val metricRuntimeValueLabel = JBLabel(PhpDebugToolsBundle.message("toolwindow.methodInvoke.metric.unknown"))
+    private val metricParameterValueLabel = JBLabel(PhpDebugToolsBundle.message("toolwindow.methodInvoke.metric.unknown"))
     private val detailArea = readOnlyArea()
     private val parameterArea = readOnlyArea()
     private val argsArea = JBTextArea("[]")
@@ -101,12 +110,16 @@ class MethodInvokeToolWindowPanel(
     }
     private val confirmEditButton = JButton(PhpDebugToolsBundle.message("common.ok"))
     private val cancelEditButton = JButton(PhpDebugToolsBundle.message("common.cancel"))
-    private val topTabs = JBTabbedPane()
-    private val bottomTabs = JBTabbedPane()
+    private val sectionTabsPanel = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
     private val mainCardLayout = CardLayout()
     private val mainCardPanel = JPanel(mainCardLayout)
     private val bottomCardLayout = CardLayout()
     private val bottomPanel = JPanel(bottomCardLayout)
+    private val overviewSectionButton = JButton(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.overview"))
+    private val paramSectionButton = JButton(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.params"))
+    private val pathSectionButton = JButton(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.path"))
+    private val requestSectionButton = JButton(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.body"))
+    private val scriptSectionButton = JButton(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.script"))
     private val formContentPanel by lazy { buildWorkbenchShell() }
     private val formScrollPane = JBScrollPane(formContentPanel).apply {
         horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
@@ -174,6 +187,8 @@ class MethodInvokeToolWindowPanel(
         metaLabel.text = state.details.firstOrNull().orEmpty()
         detailArea.text = state.details.joinToString(separator = "\n")
         detailArea.caretPosition = 0
+        metricProjectValueLabel.text = state.summary
+        metricParameterValueLabel.text = PhpDebugToolsBundle.message("toolwindow.methodInvoke.metric.unknown")
         setVisualStatus(MethodInvokeVisualStatus.IDLE)
     }
 
@@ -251,76 +266,193 @@ class MethodInvokeToolWindowPanel(
     }
 
     private fun buildWorkbenchShell(): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout(0, 10)).apply {
+        JBPanel<JBPanel<*>>(BorderLayout(0, 14)).apply {
             ToolWindowUiStyles.applyShellSurface(this)
-            add(buildTopWorkspace(), BorderLayout.NORTH)
-            add(buildCenterWorkspace(), BorderLayout.CENTER)
-            add(buildBottomWorkspace(), BorderLayout.SOUTH)
+            border = JBUI.Borders.empty(18)
+            add(buildWorkspaceHeader(), BorderLayout.NORTH)
+            add(buildWorkspaceGrid(), BorderLayout.CENTER)
         }
 
-    private fun buildTopWorkspace(): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout(0, 8)).apply {
+    private fun buildWorkspaceHeader(): JComponent =
+        JBPanel<JBPanel<*>>(BorderLayout(18, 0)).apply {
             isOpaque = false
-            add(buildMethodRow(), BorderLayout.NORTH)
-            add(buildPhpRow(), BorderLayout.CENTER)
-            border = JBUI.Borders.empty(10, 10, 0, 10)
-        }
-
-    private fun buildMethodRow(): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout(8, 0)).apply {
-            ToolWindowUiStyles.applyToolbarCard(this)
             add(
-                JPanel(BorderLayout()).apply {
+                JBPanel<JBPanel<*>>().apply {
+                    layout = BoxLayout(this, BoxLayout.Y_AXIS)
                     isOpaque = false
-                    preferredSize = Dimension(JBUI.scale(180), JBUI.scale(34))
-                    minimumSize = preferredSize
-                    add(searchField, BorderLayout.CENTER)
+                    add(workspaceLabel.also(ToolWindowUiStyles::applySectionEyebrow))
+                    add(Box.createVerticalStrut(6))
+                    add(workspaceTitleLabel)
                 },
-                BorderLayout.WEST,
+                BorderLayout.CENTER,
             )
-            add(methodComboBox, BorderLayout.CENTER)
             add(
-                JPanel().apply {
-                    layout = BoxLayout(this, BoxLayout.X_AXIS)
-                    isOpaque = false
-                    add(Box.createHorizontalStrut(JBUI.scale(8)))
-                    add(refreshButton)
-                    add(Box.createHorizontalStrut(JBUI.scale(4)))
-                    add(executeButton)
+                JBPanel<JBPanel<*>>(BorderLayout()).apply {
+                    ToolWindowUiStyles.applySoftCard(this)
+                    add(workspaceEnvironmentLabel, BorderLayout.CENTER)
                 },
                 BorderLayout.EAST,
             )
         }
 
-    private fun buildPhpRow(): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout(8, 0)).apply {
-            ToolWindowUiStyles.applyToolbarCard(this)
+    private fun buildWorkspaceGrid(): JComponent =
+        JBPanel<JBPanel<*>>(BorderLayout(14, 0)).apply {
+            isOpaque = false
+            add(buildRequestWorkbenchCard(), BorderLayout.CENTER)
+            add(buildResultColumn(), BorderLayout.EAST)
+        }
+
+    private fun buildRequestWorkbenchCard(): JComponent =
+        JBPanel<JBPanel<*>>().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            ToolWindowUiStyles.applyCard(this)
+            preferredSize = Dimension(preferredSize.width, JBUI.scale(620))
             add(
-                JBLabel("PHP").apply {
-                    ToolWindowUiStyles.applyTitleLabel(this)
-                    ToolWindowUiStyles.applyMutedLabel(this)
+                JBPanel<JBPanel<*>>(BorderLayout(16, 0)).apply {
+                    isOpaque = false
+                    add(
+                        JBPanel<JBPanel<*>>().apply {
+                            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                            isOpaque = false
+                            add(requestBuilderLabel.also(ToolWindowUiStyles::applySectionEyebrow))
+                            add(Box.createVerticalStrut(6))
+                            add(requestBuilderTitleLabel)
+                        },
+                        BorderLayout.CENTER,
+                    )
+                    add(
+                        JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
+                            isOpaque = false
+                            add(refreshButton)
+                            add(phpRefreshButton)
+                        },
+                        BorderLayout.EAST,
+                    )
                 },
-                BorderLayout.WEST,
             )
-            add(phpExecutableComboBox, BorderLayout.CENTER)
-            add(phpRefreshButton, BorderLayout.EAST)
+            add(Box.createVerticalStrut(14))
+            add(buildOperationRow())
+            add(Box.createVerticalStrut(14))
+            add(sectionTabsPanel)
+            add(Box.createVerticalStrut(12))
+            add(mainCardPanel)
         }
 
-    private fun buildCenterWorkspace(): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout()).apply {
+    private fun buildOperationRow(): JComponent =
+        JBPanel<JBPanel<*>>().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
             isOpaque = false
-            add(topTabs, BorderLayout.NORTH)
-            add(mainCardPanel, BorderLayout.CENTER)
-            border = JBUI.Borders.customLine(ToolWindowUiStyles.statusColor(MethodInvokeVisualStatus.IDLE), 1, 0, 0, 0)
+            add(
+                JPanel(BorderLayout()).apply {
+                    isOpaque = false
+                    preferredSize = Dimension(JBUI.scale(150), JBUI.scale(42))
+                    minimumSize = preferredSize
+                    add(searchField, BorderLayout.CENTER)
+                },
+            )
+            add(Box.createHorizontalStrut(JBUI.scale(10)))
+            add(
+                JPanel(BorderLayout()).apply {
+                    isOpaque = false
+                    preferredSize = Dimension(JBUI.scale(250), JBUI.scale(42))
+                    minimumSize = preferredSize
+                    add(methodComboBox, BorderLayout.CENTER)
+                },
+            )
+            add(Box.createHorizontalStrut(JBUI.scale(10)))
+            add(
+                JPanel(BorderLayout()).apply {
+                    isOpaque = false
+                    preferredSize = Dimension(JBUI.scale(130), JBUI.scale(42))
+                    minimumSize = preferredSize
+                    add(phpExecutableComboBox, BorderLayout.CENTER)
+                },
+            )
+            add(Box.createHorizontalGlue())
+            add(Box.createHorizontalStrut(JBUI.scale(10)))
+            add(
+                JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
+                    isOpaque = false
+                    add(executeButton)
+                },
+            )
         }
 
-    private fun buildBottomWorkspace(): JComponent =
-        JBPanel<JBPanel<*>>(BorderLayout()).apply {
+    private fun buildResultColumn(): JComponent =
+        JBPanel<JBPanel<*>>().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
             isOpaque = false
-            add(buildStatusStrip(), BorderLayout.NORTH)
-            add(bottomTabs, BorderLayout.CENTER)
-            border = JBUI.Borders.empty(0, 0, 10, 0)
-            preferredSize = Dimension(preferredSize.width, JBUI.scale(290))
+            preferredSize = Dimension(JBUI.scale(300), preferredSize.height)
+            maximumSize = Dimension(JBUI.scale(320), Int.MAX_VALUE)
+            add(buildStatusCard())
+            add(Box.createVerticalStrut(12))
+            add(buildMetricCards())
+            add(Box.createVerticalStrut(12))
+            add(buildOutputCard())
+        }
+
+    private fun buildStatusCard(): JComponent =
+        JBPanel<JBPanel<*>>(BorderLayout(0, 10)).apply {
+            ToolWindowUiStyles.applyStatusCard(this)
+            add(statusCardLabel.also(ToolWindowUiStyles::applySectionEyebrow), BorderLayout.NORTH)
+            add(
+                JBPanel<JBPanel<*>>().apply {
+                    layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                    isOpaque = false
+                    add(
+                        JBPanel<JBPanel<*>>(BorderLayout(10, 0)).apply {
+                            isOpaque = false
+                            statusOrb.background = ToolWindowUiStyles.statusColor(MethodInvokeVisualStatus.IDLE)
+                            statusOrb.preferredSize = Dimension(JBUI.scale(16), JBUI.scale(16))
+                            statusOrb.minimumSize = statusOrb.preferredSize
+                            statusOrb.maximumSize = statusOrb.preferredSize
+                            add(statusOrb, BorderLayout.WEST)
+                            add(statusStripLabel, BorderLayout.CENTER)
+                        },
+                    )
+                    add(Box.createVerticalStrut(6))
+                    add(statusLabel)
+                },
+                BorderLayout.CENTER,
+            )
+        }
+
+    private fun buildMetricCards(): JComponent =
+        JBPanel<JBPanel<*>>().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            add(buildMetricCard(PhpDebugToolsBundle.message("toolwindow.methodInvoke.metric.project"), metricProjectValueLabel))
+            add(Box.createVerticalStrut(8))
+            add(buildMetricCard(PhpDebugToolsBundle.message("toolwindow.methodInvoke.metric.runtime"), metricRuntimeValueLabel))
+            add(Box.createVerticalStrut(8))
+            add(buildMetricCard(PhpDebugToolsBundle.message("toolwindow.methodInvoke.metric.parameters"), metricParameterValueLabel))
+        }
+
+    private fun buildMetricCard(title: String, valueLabel: JBLabel): JComponent =
+        JBPanel<JBPanel<*>>(BorderLayout(0, 6)).apply {
+            ToolWindowUiStyles.applyMetricCard(this)
+            add(JBLabel(title).also(ToolWindowUiStyles::applySectionEyebrow), BorderLayout.NORTH)
+            add(valueLabel, BorderLayout.CENTER)
+        }
+
+    private fun buildOutputCard(): JComponent =
+        JBPanel<JBPanel<*>>(BorderLayout(0, 0)).apply {
+            ToolWindowUiStyles.applyCodeSurface(this)
+            add(
+                JBPanel<JBPanel<*>>(BorderLayout()).apply {
+                    ToolWindowUiStyles.applyCodeToolbar(this)
+                    preferredSize = Dimension(0, JBUI.scale(44))
+                    add(
+                        JBLabel(PhpDebugToolsBundle.message("toolwindow.methodInvoke.section.result")).also(
+                            ToolWindowUiStyles::applyMutedLabel,
+                        ),
+                        BorderLayout.WEST,
+                    )
+                    border = JBUI.Borders.empty(0, 14)
+                },
+                BorderLayout.NORTH,
+            )
+            add(bottomPanel, BorderLayout.CENTER)
         }
 
     private fun buildMainContentCards() {
@@ -331,7 +463,7 @@ class MethodInvokeToolWindowPanel(
         mainCardPanel.add(buildDetailPlaceholderPanel("Path"), MainContentCard.PATH)
         mainCardPanel.add(buildDetailPlaceholderPanel("Script"), MainContentCard.SCRIPT)
         mainCardLayout.show(mainCardPanel, MainContentCard.OVERVIEW)
-        configureTabLook(topTabs)
+        mainCardPanel.alignmentX = Component.LEFT_ALIGNMENT
     }
 
     private fun buildOverviewPanel(): JComponent =
@@ -343,8 +475,7 @@ class MethodInvokeToolWindowPanel(
 
     private fun buildSummarySurface(): JComponent =
         JBPanel<JBPanel<*>>(BorderLayout(0, 10)).apply {
-            ToolWindowUiStyles.applyShellSurface(this)
-            border = JBUI.Borders.empty(12, 12, 0, 12)
+            ToolWindowUiStyles.applySoftCard(this)
             add(
                 JBPanel<JBPanel<*>>(BorderLayout(8, 0)).apply {
                     isOpaque = false
@@ -367,21 +498,21 @@ class MethodInvokeToolWindowPanel(
     private fun buildRequestContextPanel(): JComponent =
         JBPanel<JBPanel<*>>(BorderLayout()).apply {
             isOpaque = false
-            border = JBUI.Borders.empty(12)
+            border = JBUI.Borders.empty(12, 0, 0, 0)
             add(requestContextPanel, BorderLayout.CENTER)
         }
 
     private fun buildParamPanel(): JComponent =
         JBPanel<JBPanel<*>>(BorderLayout()).apply {
             isOpaque = false
-            border = JBUI.Borders.empty(12)
+            border = JBUI.Borders.empty(12, 0, 0, 0)
             add(buildEditorSurface(argsEditorHost, PhpDebugToolsBundle.message("toolwindow.methodInvoke.args.label")), BorderLayout.CENTER)
         }
 
     private fun buildDetailPlaceholderPanel(title: String): JComponent =
         JBPanel<JBPanel<*>>(BorderLayout()).apply {
             isOpaque = false
-            border = JBUI.Borders.empty(12)
+            border = JBUI.Borders.empty(12, 0, 0, 0)
             add(
                 buildFramelessSection(
                     title,
@@ -401,7 +532,7 @@ class MethodInvokeToolWindowPanel(
                 JBLabel(title).apply {
                     // 分区标题用更小字号，与内容区形成视觉层次
                     font = font.deriveFont(Font.PLAIN, (font.size2D - 1f).coerceAtLeast(10f))
-                    ToolWindowUiStyles.applyMutedLabel(this)
+                    ToolWindowUiStyles.applySectionEyebrow(this)
                 },
                 BorderLayout.NORTH,
             )
@@ -451,73 +582,44 @@ class MethodInvokeToolWindowPanel(
     }
 
     private fun configureTabs() {
-        configureWorkbenchTabs(topTabs)
-        configureWorkbenchTabs(bottomTabs)
-
-        topTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.overview"), JPanel())
-        topTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.params"), JPanel())
-        topTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.path"), JPanel())
-        topTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.body"), JPanel())
-        topTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.script"), JPanel())
-
-        bottomTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.result"), bottomPanel)
-        bottomTabs.addTab(PhpDebugToolsBundle.message("toolwindow.methodInvoke.tab.params"), JPanel())
-        configureTabLook(bottomTabs)
-
-        topTabs.addChangeListener {
-            when (topTabs.selectedIndex) {
-                0 -> mainCardLayout.show(mainCardPanel, MainContentCard.OVERVIEW)
-                1 -> mainCardLayout.show(mainCardPanel, MainContentCard.PARAM)
-                2 -> mainCardLayout.show(mainCardPanel, MainContentCard.PATH)
-                3 -> mainCardLayout.show(mainCardPanel, MainContentCard.REQUEST)
-                else -> mainCardLayout.show(mainCardPanel, MainContentCard.SCRIPT)
-            }
+        sectionTabsPanel.isOpaque = false
+        listOf(
+            overviewSectionButton to MainContentCard.OVERVIEW,
+            paramSectionButton to MainContentCard.PARAM,
+            pathSectionButton to MainContentCard.PATH,
+            requestSectionButton to MainContentCard.REQUEST,
+            scriptSectionButton to MainContentCard.SCRIPT,
+        ).forEach { (button, card) ->
+            button.addActionListener { showMainContentCard(card) }
+            sectionTabsPanel.add(button)
         }
-    }
-
-    private fun configureWorkbenchTabs(tabs: JBTabbedPane) {
-        tabs.border = JBUI.Borders.empty(0, 10, 0, 10)
-        tabs.background = background
-        tabs.putClientProperty("JTabbedPane.tabInsets", JBUI.insets(8, 16))
-        tabs.putClientProperty("JTabbedPane.contentSeparatorHeight", 1)
-    }
-
-    private fun configureTabLook(tabs: JBTabbedPane) {
-        tabs.tabPlacement = JTabbedPane.TOP
-        tabs.tabLayoutPolicy = JTabbedPane.SCROLL_TAB_LAYOUT
-        for (index in 0 until tabs.tabCount) {
-            styleTab(tabs, index, index == tabs.selectedIndex)
-        }
-        tabs.addChangeListener {
-            for (index in 0 until tabs.tabCount) {
-                styleTab(tabs, index, index == tabs.selectedIndex)
-            }
-        }
-    }
-
-    private fun styleTab(tabs: JBTabbedPane, index: Int, selected: Boolean) {
-        val tabComponent = tabs.getTabComponentAt(index) ?: JBLabel(tabs.getTitleAt(index)).also {
-            tabs.setTabComponentAt(index, it)
-        }
-        if (tabComponent is JBLabel) {
-            tabComponent.border = ToolWindowUiStyles.tabBorder(selected)
-            tabComponent.background = tabs.background
-            tabComponent.foreground = if (selected) ToolWindowUiStyles.activeBlue() else ToolWindowUiStyles.statusColor(MethodInvokeVisualStatus.IDLE)
-            tabComponent.isOpaque = false
-            ToolWindowUiStyles.applyTabLabel(tabComponent, selected)
-            tabComponent.text = tabs.getTitleAt(index)
-        }
+        showMainContentCard(MainContentCard.OVERVIEW)
     }
 
     private fun configureTypography() {
         ToolWindowUiStyles.applyTitleLabel(signatureLabel, 3F)
+        ToolWindowUiStyles.applyTitleLabel(workspaceTitleLabel, 5F)
+        ToolWindowUiStyles.applyTitleLabel(requestBuilderTitleLabel, 1F)
+        ToolWindowUiStyles.applyTitleLabel(statusStripLabel, 2F)
+        ToolWindowUiStyles.applyTitleLabel(metricProjectValueLabel)
+        ToolWindowUiStyles.applyTitleLabel(metricRuntimeValueLabel)
+        ToolWindowUiStyles.applyTitleLabel(metricParameterValueLabel)
         ToolWindowUiStyles.applyMutedLabel(metaLabel)
+        ToolWindowUiStyles.applySectionEyebrow(workspaceLabel)
+        ToolWindowUiStyles.applyMutedLabel(workspaceEnvironmentLabel)
+        ToolWindowUiStyles.applySectionEyebrow(requestBuilderLabel)
+        ToolWindowUiStyles.applySectionEyebrow(statusCardLabel)
     }
 
     private fun configureActionStyles() {
-        ToolWindowUiStyles.applyIconButton(refreshButton)
-        ToolWindowUiStyles.applyIconButton(phpRefreshButton)
-        ToolWindowUiStyles.applyIconButton(executeButton, primary = true)
+        ToolWindowUiStyles.applyRoundIconButton(refreshButton)
+        ToolWindowUiStyles.applyRoundIconButton(phpRefreshButton)
+        ToolWindowUiStyles.applyRoundIconButton(executeButton, primary = true)
+        ToolWindowUiStyles.applyCapsuleButton(overviewSectionButton, selected = true)
+        ToolWindowUiStyles.applyCapsuleButton(paramSectionButton)
+        ToolWindowUiStyles.applyCapsuleButton(pathSectionButton)
+        ToolWindowUiStyles.applyCapsuleButton(requestSectionButton)
+        ToolWindowUiStyles.applyCapsuleButton(scriptSectionButton)
         ToolWindowUiStyles.applyPrimaryButton(confirmEditButton)
         ToolWindowUiStyles.applySecondaryButton(cancelEditButton)
         ToolWindowUiStyles.applyInputSurface(phpExecutableComboBox)
@@ -525,11 +627,20 @@ class MethodInvokeToolWindowPanel(
         ToolWindowUiStyles.applyInputSurface(searchField)
     }
 
+    private fun showMainContentCard(card: String) {
+        mainCardLayout.show(mainCardPanel, card)
+        ToolWindowUiStyles.applyCapsuleButton(overviewSectionButton, card == MainContentCard.OVERVIEW)
+        ToolWindowUiStyles.applyCapsuleButton(paramSectionButton, card == MainContentCard.PARAM)
+        ToolWindowUiStyles.applyCapsuleButton(pathSectionButton, card == MainContentCard.PATH)
+        ToolWindowUiStyles.applyCapsuleButton(requestSectionButton, card == MainContentCard.REQUEST)
+        ToolWindowUiStyles.applyCapsuleButton(scriptSectionButton, card == MainContentCard.SCRIPT)
+    }
+
     private fun configureTextAreas() {
         ToolWindowUiStyles.applyResultArea(detailArea)
         ToolWindowUiStyles.applyResultArea(parameterArea)
         ToolWindowUiStyles.applyResultArea(argsArea)
-        ToolWindowUiStyles.applyResultArea(resultArea)
+        ToolWindowUiStyles.applyCodeArea(resultArea, accent = true)
         ToolWindowUiStyles.applyResultArea(parameterEditArea)
     }
 
@@ -595,6 +706,8 @@ class MethodInvokeToolWindowPanel(
         selectedPhpCommand = preferredItem.command
         phpExecutableEditor().text = preferredItem.selectedText
         phpExecutableComboBox.toolTipText = preferredItem.displayText
+        workspaceEnvironmentLabel.text = preferredItem.displayText
+        metricRuntimeValueLabel.text = preferredItem.primaryText
     }
 
     private fun findPhpRuntimeItem(command: String): PhpRuntimeComboItem? =
@@ -607,6 +720,8 @@ class MethodInvokeToolWindowPanel(
         val selectedItem = phpExecutableComboBox.selectedItem as? PhpRuntimeComboItem ?: return
         selectedPhpCommand = selectedItem.command
         phpExecutableComboBox.toolTipText = selectedItem.displayText
+        workspaceEnvironmentLabel.text = selectedItem.displayText
+        metricRuntimeValueLabel.text = selectedItem.primaryText
         val updateEditorText = Runnable {
             if (phpExecutableComboBox.selectedItem === selectedItem) {
                 phpExecutableEditor().text = selectedItem.selectedText
@@ -680,16 +795,17 @@ class MethodInvokeToolWindowPanel(
             append(selected.target.parameters.size)
             append(" 个")
         }
+        metricProjectValueLabel.text = selected.target.classFqn.substringAfterLast('.')
+        metricParameterValueLabel.text = "${selected.target.parameters.size} 个"
         parameterArea.text = state.parameterLines.joinToString(separator = "\n")
         parameterArea.rows = maxOf(1, minOf(state.parameterLines.size, 10))
         parameterArea.caretPosition = 0
         switchArgsEditor(selected)
         state.controllerRequest?.let(requestContextPanel::applyState)
-        topTabs.selectedIndex = if (state.showRequestContext) 3 else 0
         if (state.showRequestContext) {
-            mainCardLayout.show(mainCardPanel, MainContentCard.REQUEST)
+            showMainContentCard(MainContentCard.REQUEST)
         } else {
-            mainCardLayout.show(mainCardPanel, MainContentCard.OVERVIEW)
+            showMainContentCard(MainContentCard.OVERVIEW)
         }
         setVisualStatus(MethodInvokeVisualStatus.IDLE)
         showResultText(PhpDebugToolsBundle.message("toolwindow.methodInvoke.result.ready", state.targetSignature))
@@ -860,7 +976,10 @@ class MethodInvokeToolWindowPanel(
         }
 
     private fun createTextAreaScrollPane(area: JBTextArea): JBScrollPane =
-        JBScrollPane(area).also(ToolWindowUiStyles::applyScrollPane)
+        JBScrollPane(area).also {
+            it.background = area.background
+            ToolWindowUiStyles.applyScrollPane(it)
+        }
 
     private fun setVisualStatus(status: MethodInvokeVisualStatus) {
         val text = when (status) {
@@ -873,6 +992,7 @@ class MethodInvokeToolWindowPanel(
         ToolWindowUiStyles.applyStatusBadge(statusLabel, status)
         statusStripLabel.text = text
         statusStripLabel.foreground = ToolWindowUiStyles.statusColor(status)
+        statusOrb.background = ToolWindowUiStyles.statusColor(status)
         // 同步更新左侧 accent 色条
         ToolWindowUiStyles.applyStatusStrip(statusStripPanel, status)
         statusStripPanel.repaint()

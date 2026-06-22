@@ -19,63 +19,132 @@ import javax.swing.Timer
 import javax.swing.border.Border
 
 internal object ToolWindowUiStyles {
-    private val panelSurface = JBColor(Color(0xFAFAFA), Color(0x15161A))
-    private val shellSurface = JBColor(Color(0xFFFFFF), Color(0x1B1D22))
-    private val cardSurface = JBColor(Color(0xFFFFFF), Color(0x202329))
-    private val toolbarSurface = JBColor(Color(0xFFFFFF), Color(0x20232A))
-    private val innerSurface = JBColor(Color(0xFFFFFF), Color(0x181A1F))
-    private val inputSurface = JBColor(Color(0xFFFFFF), Color(0x23262D))
-    private val borderColor = JBColor(Color(0xE5E5E5), Color(0x343841))
-    private val subtleBorderColor = JBColor(Color(0xEEEEEE), Color(0x2B2F37))
-    private val hoverSurface = JBColor(Color(0xF5F5F5), Color(0x2B2F38))
-    private val pressedSurface = JBColor(Color(0xEDEDED), Color(0x363B45))
-    private val selectedSurface = JBColor(Color(0xFFF4ED), Color(0x34251E))
-    private val primarySurface = JBColor(Color(0xFF6A2A), Color(0xFF7A3D))
-    private val primaryHoverSurface = JBColor(Color(0xF05A1A), Color(0xFF8B52))
-    private val primaryPressedSurface = JBColor(Color(0xD94D12), Color(0xE86427))
-    private val mutedTextColor = JBColor(Color(0x737373), Color(0xAEB4BF))
-    private val successColor = JBColor(Color(0x16A34A), Color(0x5BD38A))
-    private val warningColor = JBColor(Color(0xD97706), Color(0xFFB86B))
-    private val errorColor = JBColor(Color(0xDC2626), Color(0xFF6B6B))
-    private val idleForeground = JBColor(Color(0x525252), Color(0x9AA3AF))
-    private val accentColor = JBColor(Color(0xFF6A2A), Color(0xFF8A4C))
+    private val pageSurface = JBColor(Color(0xF3F4F8), Color(0x12141A))
+    private val windowSurface = JBColor(Color(0xFDFDFE), Color(0x191C22))
+    private val titleBarSurface = JBColor(Color(0xF5F5F7), Color(0x1E2129))
+    private val sidebarSurface = JBColor(Color(0xF6F7FA), Color(0x171A21))
+    private val cardSurface = JBColor(Color(0xFFFFFF), Color(0x20242C))
+    private val softCardSurface = JBColor(Color(0xFAFAFC), Color(0x262A33))
+    private val innerSurface = JBColor(Color(0xFFFFFF), Color(0x1E222A))
+    private val inputSurface = JBColor(Color(0xFAFAFC), Color(0x242831))
+    private val codeSurface = JBColor(Color(0x0F1720), Color(0x0B0E14))
+    private val codeToolbarSurface = JBColor(Color(0x121A23), Color(0x131A24))
+    private val borderColor = JBColor(Color(0xD9DCE3), Color(0x323744))
+    private val subtleBorderColor = JBColor(Color(0xE9EAF0), Color(0x2A2F3A))
+    private val chipSurface = JBColor(Color(0xEEF0F3), Color(0x2B303A))
+    private val hoverSurface = JBColor(Color(0xF0F2F6), Color(0x2E333E))
+    private val selectedSurface = JBColor(Color(0xE8F2FF), Color(0x17304C))
+    private val primarySurface = JBColor(Color(0x0A84FF), Color(0x2997FF))
+    private val primaryHoverSurface = JBColor(Color(0x3F9BFF), Color(0x4AA3FF))
+    private val primaryPressedSurface = JBColor(Color(0x0066CC), Color(0x0A84FF))
+    private val mutedTextColor = JBColor(Color(0x6E6E73), Color(0xA1A1A6))
+    private val faintTextColor = JBColor(Color(0x86868B), Color(0x73737A))
+    private val idleForeground = JBColor(Color(0x4C4C51), Color(0x9AA3AF))
+    private val successColor = JBColor(Color(0x30D158), Color(0x32D74B))
+    private val warningColor = JBColor(Color(0xFFCC00), Color(0xFFD60A))
+    private val errorColor = JBColor(Color(0xFF453A), Color(0xFF6961))
+    private val titleColor = JBColor(Color(0x1D1D1F), Color(0xF5F5F7))
+    private val codeTextColor = JBColor(Color(0xD8E0EA), Color(0xD8E0EA))
+    private val codeAccentTextColor = JBColor(Color(0xD7F7BD), Color(0xD7F7BD))
 
     fun applyWorkbenchSurface(component: JComponent) {
         component.isOpaque = true
-        component.background = panelSurface
-        component.border = JBUI.Borders.empty(12)
+        component.background = pageSurface
+        component.border = JBUI.Borders.empty(14)
+    }
+
+    fun applyWindowShell(component: JComponent) {
+        component.isOpaque = true
+        component.background = windowSurface
+        component.border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(subtleBorderColor, 1, true),
+            JBUI.Borders.empty(0),
+        )
     }
 
     fun applyShellSurface(component: JComponent) {
         component.isOpaque = true
-        component.background = shellSurface
+        component.background = windowSurface
         component.border = JBUI.Borders.empty(0)
     }
 
+    fun applyTitleBar(component: JComponent) {
+        component.isOpaque = true
+        component.background = titleBarSurface
+        component.border = BorderFactory.createMatteBorder(0, 0, 1, 0, subtleBorderColor)
+    }
+
+    fun applySidebarSurface(component: JComponent) {
+        component.isOpaque = true
+        component.background = sidebarSurface
+        component.border = BorderFactory.createMatteBorder(0, 0, 1, 0, subtleBorderColor)
+    }
+
     fun applyCard(component: JComponent) {
+        applyGlassCard(component)
+    }
+
+    fun applyGlassCard(component: JComponent) {
         component.isOpaque = true
         component.background = cardSurface
         component.border = JBUI.Borders.compound(
-            BorderFactory.createLineBorder(borderColor, 1),
+            BorderFactory.createLineBorder(subtleBorderColor, 1, true),
             JBUI.Borders.empty(16),
         )
     }
 
-    fun applyToolbarCard(component: JComponent) {
+    fun applySoftCard(component: JComponent) {
         component.isOpaque = true
-        component.background = toolbarSurface
+        component.background = softCardSurface
         component.border = JBUI.Borders.compound(
-            BorderFactory.createLineBorder(borderColor, 1),
-            JBUI.Borders.empty(9, 12, 9, 12),
+            BorderFactory.createLineBorder(subtleBorderColor, 1, true),
+            JBUI.Borders.empty(12),
         )
+    }
+
+    fun applyToolbarCard(component: JComponent) {
+        applySoftCard(component)
     }
 
     fun applyInnerSurface(component: JComponent) {
         component.isOpaque = true
         component.background = innerSurface
         component.border = JBUI.Borders.compound(
-            BorderFactory.createLineBorder(subtleBorderColor, 1),
-            JBUI.Borders.empty(8),
+            BorderFactory.createLineBorder(subtleBorderColor, 1, true),
+            JBUI.Borders.empty(10),
+        )
+    }
+
+    fun applyCodeSurface(component: JComponent) {
+        component.isOpaque = true
+        component.background = codeSurface
+        component.border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(Color(0x202531), 1, true),
+            JBUI.Borders.empty(0),
+        )
+    }
+
+    fun applyCodeToolbar(component: JComponent) {
+        component.isOpaque = true
+        component.background = codeToolbarSurface
+        component.border = BorderFactory.createMatteBorder(0, 0, 1, 0, Color(0x25303A))
+    }
+
+    fun applyMetricCard(component: JComponent) {
+        component.isOpaque = true
+        component.background = softCardSurface
+        component.border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(subtleBorderColor, 1, true),
+            JBUI.Borders.empty(12),
+        )
+    }
+
+    fun applyStatusCard(component: JComponent) {
+        component.isOpaque = true
+        component.background = cardSurface
+        component.border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(subtleBorderColor, 1, true),
+            JBUI.Borders.empty(16),
         )
     }
 
@@ -83,8 +152,8 @@ internal object ToolWindowUiStyles {
         button.background = primarySurface
         button.foreground = JBColor(Color.WHITE, Color.WHITE)
         button.border = JBUI.Borders.compound(
-            BorderFactory.createLineBorder(primaryPressedSurface, 1),
-            JBUI.Borders.empty(7, 12),
+            BorderFactory.createLineBorder(primaryPressedSurface, 1, true),
+            JBUI.Borders.empty(8, 16),
         )
         button.isFocusPainted = false
         button.isOpaque = true
@@ -93,10 +162,10 @@ internal object ToolWindowUiStyles {
 
     fun applySecondaryButton(button: AbstractButton) {
         button.background = inputSurface
-        button.foreground = JBColor.foreground()
+        button.foreground = titleColor
         button.border = JBUI.Borders.compound(
-            BorderFactory.createLineBorder(borderColor, 1),
-            JBUI.Borders.empty(6, 10),
+            BorderFactory.createLineBorder(borderColor, 1, true),
+            JBUI.Borders.empty(7, 12),
         )
         button.isFocusPainted = false
         button.isOpaque = true
@@ -104,10 +173,14 @@ internal object ToolWindowUiStyles {
     }
 
     fun applyIconButton(button: AbstractButton, primary: Boolean = false) {
+        applyRoundIconButton(button, primary)
+    }
+
+    fun applyRoundIconButton(button: AbstractButton, primary: Boolean = false) {
         button.horizontalAlignment = SwingConstants.CENTER
-        button.border = BorderFactory.createLineBorder(if (primary) primaryPressedSurface else borderColor, 1)
+        button.border = BorderFactory.createLineBorder(if (primary) primaryPressedSurface else borderColor, 1, true)
         button.background = if (primary) primarySurface else inputSurface
-        button.foreground = if (primary) JBColor(Color.WHITE, Color.WHITE) else JBColor.foreground()
+        button.foreground = if (primary) JBColor(Color.WHITE, Color.WHITE) else mutedTextColor
         button.isContentAreaFilled = true
         button.isBorderPainted = true
         button.isFocusPainted = false
@@ -115,29 +188,52 @@ internal object ToolWindowUiStyles {
         installHoverTransition(button, button.background, if (primary) primaryHoverSurface else hoverSurface)
     }
 
+    fun applyCapsuleButton(button: AbstractButton, selected: Boolean = false) {
+        button.border = JBUI.Borders.compound(
+            BorderFactory.createLineBorder(if (selected) selectedSurface else subtleBorderColor, 1, true),
+            JBUI.Borders.empty(6, 12),
+        )
+        button.background = if (selected) selectedSurface else chipSurface
+        button.foreground = if (selected) primaryPressedSurface else mutedTextColor
+        button.isOpaque = true
+        button.isFocusPainted = false
+    }
 
     fun applyInputSurface(component: JComponent) {
         component.isOpaque = true
         component.background = inputSurface
         component.border = JBUI.Borders.compound(
-            BorderFactory.createLineBorder(borderColor, 1),
+            BorderFactory.createLineBorder(borderColor, 1, true),
             JBUI.Borders.empty(6, 10),
         )
         component.font = interFont(component.font)
+        component.foreground = titleColor
     }
-
 
     fun applyResultArea(area: JTextArea) {
         area.background = inputSurface
         area.border = JBUI.Borders.empty(8)
-        area.foreground = JBColor.foreground()
-        area.caretColor = JBColor.foreground()
-        // 使用 IDE 默认字体，确保中文文案和路径在不同系统字体环境下都能正常回退显示
+        area.foreground = titleColor
+        area.caretColor = titleColor
+        area.font = area.font.deriveFont(Font.PLAIN, JBUI.scaleFontSize(12f).toFloat())
+    }
+
+    fun applyCodeArea(area: JTextArea, accent: Boolean = false) {
+        area.background = codeSurface
+        area.border = JBUI.Borders.empty(16)
+        area.foreground = if (accent) codeAccentTextColor else codeTextColor
+        area.caretColor = codeTextColor
         area.font = area.font.deriveFont(Font.PLAIN, JBUI.scaleFontSize(12f).toFloat())
     }
 
     fun applyTitleLabel(label: JLabel, sizeDelta: Float = 0f) {
         label.font = interFont(label.font).deriveFont(Font.BOLD, label.font.size2D + sizeDelta)
+        label.foreground = titleColor
+    }
+
+    fun applySectionEyebrow(label: JLabel) {
+        label.font = interFont(label.font).deriveFont(Font.BOLD, (label.font.size2D - 1f).coerceAtLeast(10f))
+        label.foreground = mutedTextColor
     }
 
     fun applyTabLabel(label: JLabel, selected: Boolean) {
@@ -148,20 +244,22 @@ internal object ToolWindowUiStyles {
         label.font = label.font.deriveFont(label.font.style)
     }
 
-    /** 根据当前状态为状态条应用左侧 accent 色条 */
     fun applyStatusStrip(component: JComponent, status: MethodInvokeVisualStatus) {
         component.isOpaque = true
-        component.background = shellSurface
+        component.background = cardSurface
         component.border = JBUI.Borders.compound(
-            BorderFactory.createMatteBorder(0, 3, 0, 0, statusColor(status)),
-            JBUI.Borders.empty(0, 10),
+            BorderFactory.createMatteBorder(0, 4, 0, 0, statusColor(status)),
+            JBUI.Borders.empty(0, 12),
         )
     }
 
     fun applyScrollPane(scrollPane: JScrollPane) {
         scrollPane.border = JBUI.Borders.empty()
         scrollPane.isOpaque = false
-        scrollPane.viewport.background = scrollPane.background
+        scrollPane.viewport.isOpaque = true
+        if (scrollPane.viewport.background == null || scrollPane.viewport.background.alpha == 0) {
+            scrollPane.viewport.background = scrollPane.background
+        }
         if (SystemInfoRt.isMac) {
             scrollPane.putClientProperty("JScrollPane.style", "overlay")
         }
@@ -172,65 +270,66 @@ internal object ToolWindowUiStyles {
         label.foreground = mutedTextColor
     }
 
+    fun applyFaintLabel(label: JLabel) {
+        label.font = interFont(label.font)
+        label.foreground = faintTextColor
+    }
+
     fun applyStatusBadge(label: JLabel, status: MethodInvokeVisualStatus) {
         label.isOpaque = true
         label.horizontalAlignment = SwingConstants.CENTER
         label.border = JBUI.Borders.compound(
-            BorderFactory.createLineBorder(subtleBorderColor, 1),
-            JBUI.Borders.empty(3, 9),
+            BorderFactory.createLineBorder(subtleBorderColor, 1, true),
+            JBUI.Borders.empty(4, 10),
         )
         applyTabularLabel(label)
         when (status) {
             MethodInvokeVisualStatus.IDLE -> {
-                label.background = JBColor(Color(0xF5F5F5), Color(0x262A31))
+                label.background = chipSurface
                 label.foreground = idleForeground
             }
 
             MethodInvokeVisualStatus.RUNNING -> {
-                label.background = JBColor(Color(0xFFFBEB), Color(0x34251E))
+                label.background = JBColor(Color(0xFFF8D6), Color(0x3B3314))
                 label.foreground = warningColor
             }
 
             MethodInvokeVisualStatus.SUCCESS -> {
-                label.background = JBColor(Color(0xF0FDF4), Color(0x173323))
+                label.background = JBColor(Color(0xE6F8ED), Color(0x173323))
                 label.foreground = successColor
             }
 
             MethodInvokeVisualStatus.ERROR -> {
-                label.background = JBColor(Color(0xFEF2F2), Color(0x371D1D))
+                label.background = JBColor(Color(0xFFE9E7), Color(0x3A1F1D))
                 label.foreground = errorColor
             }
         }
     }
 
     fun tabBorder(selected: Boolean): Border =
-        if (selected) {
-            BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 2, 0, activeBlue()),
-                BorderFactory.createEmptyBorder(8, 14, 7, 14),
-            )
-        } else {
-            BorderFactory.createEmptyBorder(8, 14, 9, 14)
-        }
+        BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(if (selected) selectedSurface else subtleBorderColor, 1, true),
+            BorderFactory.createEmptyBorder(7, 14, 7, 14),
+        )
 
     fun selectedTabBackground(): Color = selectedSurface
 
-    fun activeBlue(): Color = accentColor
+    fun activeBlue(): Color = primaryPressedSurface
 
     fun idleTextColor(): Color = idleForeground
 
     fun applyTable(table: JTable) {
-        table.background = inputSurface
-        table.foreground = JBColor.foreground()
+        table.background = innerSurface
+        table.foreground = titleColor
         table.font = interFont(table.font)
-        table.selectionBackground = JBColor(Color(0xFFF4ED), Color(0x33271F))
-        table.selectionForeground = JBColor.foreground()
+        table.selectionBackground = selectedSurface
+        table.selectionForeground = titleColor
         table.gridColor = subtleBorderColor
         table.setShowGrid(true)
         table.showVerticalLines = false
         table.intercellSpacing = java.awt.Dimension(0, 1)
         table.tableHeader.font = interFont(table.tableHeader.font).deriveFont(Font.BOLD)
-        table.tableHeader.background = toolbarSurface
+        table.tableHeader.background = softCardSurface
         table.tableHeader.foreground = mutedTextColor
         table.tableHeader.border = BorderFactory.createMatteBorder(0, 0, 1, 0, subtleBorderColor)
         table.tableHeader.reorderingAllowed = false
