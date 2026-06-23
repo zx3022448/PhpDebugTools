@@ -5,18 +5,29 @@ import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
 import java.awt.Color
 import java.awt.Font
+import java.awt.Graphics
+import java.awt.Graphics2D
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.AbstractButton
 import javax.swing.BorderFactory
+import javax.swing.JButton
 import javax.swing.JComponent
+import javax.swing.JComboBox
 import javax.swing.JLabel
+import javax.swing.JScrollBar
 import javax.swing.JScrollPane
+import javax.swing.ScrollPaneConstants
+import javax.swing.SwingUtilities
 import javax.swing.JTable
 import javax.swing.JTextArea
 import javax.swing.SwingConstants
 import javax.swing.Timer
 import javax.swing.border.Border
+import javax.swing.event.PopupMenuEvent
+import javax.swing.event.PopupMenuListener
+import javax.swing.plaf.basic.BasicComboPopup
+import javax.swing.plaf.basic.BasicScrollBarUI
 
 internal object ToolWindowUiStyles {
     private val pageSurface = JBColor(Color(0xF3F4F8), Color(0x12141A))
@@ -257,12 +268,54 @@ internal object ToolWindowUiStyles {
         scrollPane.border = JBUI.Borders.empty()
         scrollPane.isOpaque = false
         scrollPane.viewport.isOpaque = true
+        scrollPane.viewport.background = scrollPane.background
+        styleScrollBar(scrollPane.verticalScrollBar)
+        styleScrollBar(scrollPane.horizontalScrollBar)
         if (scrollPane.viewport.background == null || scrollPane.viewport.background.alpha == 0) {
             scrollPane.viewport.background = scrollPane.background
         }
         if (SystemInfoRt.isMac) {
             scrollPane.putClientProperty("JScrollPane.style", "overlay")
         }
+    }
+
+    fun applyComboPopup(
+        comboBox: JComboBox<*>,
+        popupWidthProvider: (() -> Int)? = null,
+    ) {
+        comboBox.addPopupMenuListener(
+            object : PopupMenuListener {
+                override fun popupMenuWillBecomeVisible(event: PopupMenuEvent?) {
+                    SwingUtilities.invokeLater {
+                        val popup = comboBox.accessibleContext
+                            ?.getAccessibleChild(0) as? BasicComboPopup
+                            ?: return@invokeLater
+                        val scrollPane = popup.components
+                            .filterIsInstance<JScrollPane>()
+                            .firstOrNull()
+                            ?: return@invokeLater
+                        scrollPane.background = inputSurface
+                        scrollPane.viewport.background = inputSurface
+                        scrollPane.horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+                        applyScrollPane(scrollPane)
+                        val preferredWidth = popupWidthProvider?.invoke()
+                            ?.coerceAtLeast(comboBox.width)
+                            ?.coerceAtMost(JBUI.scale(680))
+                            ?: comboBox.width
+                        val preferredHeight = popup.preferredSize.height
+                        popup.setPreferredSize(java.awt.Dimension(preferredWidth, preferredHeight))
+                        popup.size = java.awt.Dimension(preferredWidth, preferredHeight)
+                        scrollPane.preferredSize = java.awt.Dimension(preferredWidth, scrollPane.preferredSize.height)
+                        scrollPane.revalidate()
+                        scrollPane.repaint()
+                    }
+                }
+
+                override fun popupMenuWillBecomeInvisible(event: PopupMenuEvent?) = Unit
+
+                override fun popupMenuCanceled(event: PopupMenuEvent?) = Unit
+            },
+        )
     }
 
     fun applyMutedLabel(label: JLabel) {
@@ -317,6 +370,66 @@ internal object ToolWindowUiStyles {
     fun activeBlue(): Color = primaryPressedSurface
 
     fun idleTextColor(): Color = idleForeground
+
+    private fun styleScrollBar(scrollBar: JScrollBar?) {
+        scrollBar ?: return
+        scrollBar.background = inputSurface
+        scrollBar.isOpaque = true
+        scrollBar.ui = ThemedScrollBarUi()
+        scrollBar.unitIncrement = JBUI.scale(16)
+    }
+
+    private class ThemedScrollBarUi : BasicScrollBarUI() {
+        override fun configureScrollBarColors() {
+            trackColor = inputSurface
+            thumbColor = borderColor
+            thumbDarkShadowColor = borderColor
+            thumbHighlightColor = hoverSurface
+            thumbLightShadowColor = borderColor
+        }
+
+        override fun createDecreaseButton(orientation: Int): JButton = createZeroButton()
+
+        override fun createIncreaseButton(orientation: Int): JButton = createZeroButton()
+
+        override fun paintTrack(graphics: Graphics, component: JComponent, trackBounds: java.awt.Rectangle) {
+            graphics.color = inputSurface
+            graphics.fillRect(trackBounds.x, trackBounds.y, trackBounds.width, trackBounds.height)
+        }
+
+        override fun paintThumb(graphics: Graphics, component: JComponent, thumbBounds: java.awt.Rectangle) {
+            if (thumbBounds.isEmpty || !scrollbar.isEnabled) {
+                return
+            }
+            val g2 = graphics.create() as Graphics2D
+            try {
+                g2.color = if (isThumbRollover()) hoverSurface else borderColor
+                val arc = JBUI.scale(10)
+                val inset = JBUI.scale(2)
+                g2.fillRoundRect(
+                    thumbBounds.x + inset,
+                    thumbBounds.y + inset,
+                    (thumbBounds.width - inset * 2).coerceAtLeast(JBUI.scale(6)),
+                    (thumbBounds.height - inset * 2).coerceAtLeast(JBUI.scale(6)),
+                    arc,
+                    arc,
+                )
+            } finally {
+                g2.dispose()
+            }
+        }
+
+        private fun createZeroButton(): JButton {
+            return JButton().apply {
+                preferredSize = java.awt.Dimension(0, 0)
+                minimumSize = preferredSize
+                maximumSize = preferredSize
+                isOpaque = false
+                isFocusable = false
+                border = JBUI.Borders.empty()
+            }
+        }
+    }
 
     fun applyTable(table: JTable) {
         table.background = innerSurface

@@ -56,6 +56,7 @@ class ControllerRequestEditorPanel : JBPanel<JBPanel<*>>(BorderLayout()) {
         isOpaque = false
         requestMethodComboBox.addActionListener { syncBodyModeAvailability() }
         ToolWindowUiStyles.applyInputSurface(requestMethodComboBox)
+        ToolWindowUiStyles.applyComboPopup(requestMethodComboBox)
         configureActionStyles()
         buildCards()
         add(buildWorkbenchContent(), BorderLayout.CENTER)

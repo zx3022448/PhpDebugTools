@@ -11,9 +11,7 @@ import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
-import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.content.ContentFactory
-import com.intellij.ui.jcef.JBCefApp
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.JComponent
@@ -40,20 +38,11 @@ class PhpDebugToolsToolWindowFactory : ToolWindowFactory, DumbAware {
         private val logger = Logger.getInstance(PhpDebugToolsToolWindowFactory::class.java)
 
         private fun createToolWindowBinding(project: Project): ToolWindowBinding {
-            if (JBCefApp.isSupported()) {
-                val panel = PhpDebugToolsJcefToolWindowPanel(project)
-                return ToolWindowBinding(
-                    component = panel,
-                    workspaceConsumer = panel::updateWorkspace,
-                    disposable = panel,
-                )
-            }
-
-            val panel = PhpDebugToolsToolWindowPanel(project = project)
+            val panel = PhpDebugToolsJcefToolWindowPanel(project)
             return ToolWindowBinding(
                 component = panel,
                 workspaceConsumer = panel::updateWorkspace,
-                disposable = null,
+                disposable = panel,
             )
         }
 
@@ -79,32 +68,6 @@ private data class ToolWindowBinding(
     val workspaceConsumer: (ToolWindowWorkspaceState) -> Unit,
     val disposable: Disposable?,
 )
-
-private const val DEFAULT_TOOL_WINDOW_TAB_INDEX = 1
-
-internal data class ToolWindowTabDefinition(
-    val title: String,
-    val component: JComponent,
-)
-
-internal fun selectDefaultToolWindowTab(tabs: JBTabbedPane) {
-    if (tabs.tabCount > DEFAULT_TOOL_WINDOW_TAB_INDEX) {
-        tabs.selectedIndex = DEFAULT_TOOL_WINDOW_TAB_INDEX
-    }
-}
-
-internal fun buildToolWindowTabs(panel: PhpDebugToolsToolWindowPanel): List<ToolWindowTabDefinition> {
-    return listOf(
-        ToolWindowTabDefinition(
-            title = PhpDebugToolsBundle.message("toolwindow.tab.overview"),
-            component = panel.overviewComponent,
-        ),
-        ToolWindowTabDefinition(
-            title = PhpDebugToolsBundle.message("toolwindow.tab.methodInvoke"),
-            component = panel.methodInvokeComponent,
-        ),
-    )
-}
 
 internal fun buildToolWindowWorkspaceState(
     projectRoot: Path,

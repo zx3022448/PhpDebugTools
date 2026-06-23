@@ -17,11 +17,14 @@ import com.example.phpdebugtools.persistence.RecentDebugStore
 import com.google.gson.Gson
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.service
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.ThrowableComputable
+import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefJSQuery
@@ -39,13 +42,23 @@ class PhpDebugToolsJcefToolWindowPanel(
     private val methodProvider: (Project) -> List<MethodLookupItem> = ProjectMethodCollector::collect,
     private val methodInvokeExecutor: MethodInvokeExecutor = MethodInvokeExecutor(ProcessCommandRunner()),
     private val phpRuntimeDetector: PhpRuntimeDetector = PhpRuntimeDetector(ProcessCommandRunner()),
+    private val browserInitializationScheduler: ((() -> Unit) -> Unit) = { task ->
+        ApplicationManager.getApplication().invokeLater({
+            task()
+        }, ModalityState.any())
+    },
+    private val jcefDependencyPreloader: () -> Unit = ::preloadJcefProxyConfiguration,
+    private val jcefBrowserCreator: () -> JBCefBrowser = {
+        JBCefBrowser.createBuilder().build()
+    },
 ) : JBPanel<JBPanel<*>>(BorderLayout()), Disposable {
 
     private val gson = Gson()
-    private val browser = JBCefBrowser()
-    private val readyQuery = JBCefJSQuery.create(browser)
-    private val refreshQuery = JBCefJSQuery.create(browser)
-    private val executeQuery = JBCefJSQuery.create(browser)
+    private val browserHost = JBPanel<JBPanel<*>>(BorderLayout())
+    private var browser: JBCefBrowser? = null
+    private var readyQuery: JBCefJSQuery? = null
+    private var refreshQuery: JBCefJSQuery? = null
+    private var executeQuery: JBCefJSQuery? = null
     private var workspaceState = createLazyWorkspaceState()
     private var pageReady = false
     private var pendingStateJson: String? = null
@@ -53,6 +66,7 @@ class PhpDebugToolsJcefToolWindowPanel(
     private var runtimes: List<DetectedPhpRuntime> = emptyList()
     private var selectedMethodSignature: String? = null
     private var selectedRuntimeCommand: String = DEFAULT_RUNTIME_COMMAND
+    private var browserInitializationRequested = false
     private var executionState = FrontendExecutionState.idle(
         methodSignature = DEFAULT_METHOD_TITLE,
         parameterCount = DEFAULT_QUERY_ROWS.size,
@@ -61,11 +75,21 @@ class PhpDebugToolsJcefToolWindowPanel(
 
     init {
         border = JBUI.Borders.empty()
+        browserHost.border = JBUI.Borders.empty()
+        browserHost.add(
+            JBLabel("PHP Debug Tools 加载中...").apply {
+                horizontalAlignment = JBLabel.CENTER
+            },
+            BorderLayout.CENTER,
+        )
         restoreCachedState()
-        installBridge()
-        add(browser.component, BorderLayout.CENTER)
-        render()
+        add(browserHost, BorderLayout.CENTER)
         warmupCachesInBackground()
+    }
+
+    override fun addNotify() {
+        super.addNotify()
+        requestBrowserInitialization()
     }
 
     fun updateWorkspace(state: ToolWindowWorkspaceState) {
@@ -75,13 +99,84 @@ class PhpDebugToolsJcefToolWindowPanel(
     }
 
     override fun dispose() {
-        readyQuery.dispose()
-        refreshQuery.dispose()
-        executeQuery.dispose()
-        browser.dispose()
+        readyQuery?.dispose()
+        refreshQuery?.dispose()
+        executeQuery?.dispose()
+        browser?.dispose()
     }
 
-    private fun installBridge() {
+    /**
+     * JCEF 初始化只允许在工具窗口真正挂载后触发一次，避免在面板构造期抢跑。
+     */
+    internal fun requestBrowserInitialization() {
+        if (browserInitializationRequested) {
+            return
+        }
+        browserInitializationRequested = true
+        browserInitializationScheduler {
+            initializeBrowserSafely()
+        }
+    }
+
+    private fun initializeBrowserSafely() {
+        runCatching {
+            initializeBrowser()
+        }.onFailure { throwable ->
+            logger.warn("PhpDebugTools JCEF 初始化失败。", throwable)
+            showInitializationFailure(throwable)
+        }
+    }
+
+    private fun initializeBrowser() {
+        if (browser != null) {
+            return
+        }
+        if (project?.isDisposed == true) {
+            return
+        }
+        createBrowserAndSetup()
+    }
+
+    private fun createBrowserAndSetup() {
+        // JBCefApp 首次初始化会读取代理配置；先在 Holder 类初始化之外预热该 service。
+        jcefDependencyPreloader()
+        val currentBrowser = jcefBrowserCreator()
+        val currentReadyQuery = JBCefJSQuery.create(currentBrowser)
+        val currentRefreshQuery = JBCefJSQuery.create(currentBrowser)
+        val currentExecuteQuery = JBCefJSQuery.create(currentBrowser)
+
+        browser = currentBrowser
+        readyQuery = currentReadyQuery
+        refreshQuery = currentRefreshQuery
+        executeQuery = currentExecuteQuery
+
+        installBridge(currentReadyQuery, currentRefreshQuery, currentExecuteQuery)
+        browserHost.removeAll()
+        browserHost.add(currentBrowser.component, BorderLayout.CENTER)
+        browserHost.revalidate()
+        browserHost.repaint()
+        render()
+    }
+
+    private fun showInitializationFailure(throwable: Throwable) {
+        pageReady = false
+        pendingStateJson = null
+        browserHost.removeAll()
+        browserHost.add(
+            JBLabel("PHP Debug Tools 的 JCEF 视图初始化失败：${throwable.message ?: throwable::class.java.simpleName}").apply {
+                horizontalAlignment = JBLabel.CENTER
+            },
+            BorderLayout.CENTER,
+        )
+        browserHost.revalidate()
+        browserHost.repaint()
+    }
+
+    private fun installBridge(
+        readyQuery: JBCefJSQuery,
+        refreshQuery: JBCefJSQuery,
+        executeQuery: JBCefJSQuery,
+    ) {
         readyQuery.addHandler {
             pageReady = true
             pendingStateJson?.let { stateJson ->
@@ -112,6 +207,10 @@ class PhpDebugToolsJcefToolWindowPanel(
     }
 
     private fun render() {
+        val browser = browser ?: return
+        val readyQuery = readyQuery ?: return
+        val refreshQuery = refreshQuery ?: return
+        val executeQuery = executeQuery ?: return
         val html = loadTemplate()
             .replace(STATE_PLACEHOLDER, currentStateJson())
             .replace(READY_QUERY_PLACEHOLDER, readyQuery.inject("JSON.stringify(payload)", "onSuccess", "onError"))
@@ -339,7 +438,7 @@ class PhpDebugToolsJcefToolWindowPanel(
     }
 
     private fun pushStateJson(stateJson: String) {
-        browser.runJavaScript("window.__PHP_DEBUG_TOOLS__ && window.__PHP_DEBUG_TOOLS__.hydrate($stateJson);")
+        browser?.runJavaScript("window.__PHP_DEBUG_TOOLS__ && window.__PHP_DEBUG_TOOLS__.hydrate($stateJson);")
     }
 
     private fun buildViewState(): FrontendViewState {
@@ -701,6 +800,7 @@ class PhpDebugToolsJcefToolWindowPanel(
     }
 
     private companion object {
+        private val logger = Logger.getInstance(PhpDebugToolsJcefToolWindowPanel::class.java)
         const val TEMPLATE_RESOURCE = "web/toolwindow-template.html"
         const val STATE_PLACEHOLDER = "__STATE_JSON__"
         const val READY_QUERY_PLACEHOLDER = "__READY_QUERY__"
@@ -949,4 +1049,10 @@ private data class ExecuteRow(
             description = description,
         )
     }
+}
+
+private fun preloadJcefProxyConfiguration() {
+    // JBCefProxySettings still reads this legacy service during JBCefApp initialization.
+    @Suppress("DEPRECATION")
+    com.intellij.util.net.HttpConfigurable.getInstance()
 }

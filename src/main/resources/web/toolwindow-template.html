@@ -82,7 +82,6 @@
     }
 
     .title-icon:hover,
-    .refresh-btn:hover,
     .output-tool:hover {
       background: rgba(255,255,255,.08);
       color: var(--text);
@@ -94,7 +93,6 @@
 
     .title-icon svg,
     .workbench-chip svg,
-    .refresh-btn svg,
     .send-btn svg,
     .output-tool svg,
     .output-tab svg,
@@ -236,30 +234,6 @@
       padding: 18px;
     }
 
-    .request-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .request-head h2 {
-      margin: 4px 0 0;
-      font-size: 16px;
-    }
-
-    .refresh-btn {
-      width: 30px;
-      height: 30px;
-      border-radius: 999px;
-      border: none;
-      background: transparent;
-      color: #a4adbb;
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-    }
-
     .controls {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) 88px 50px;
@@ -355,6 +329,7 @@
       border-radius: 999px;
       background: transparent;
       color: #c8ced8;
+      font-size: 12px;
       font-weight: 700;
       cursor: pointer;
     }
@@ -390,6 +365,7 @@
       border: 1px solid var(--line);
       background: #24262d;
       color: #e5ebf5;
+      font-size: 12px;
       font-weight: 600;
       display: inline-flex;
       align-items: center;
@@ -420,7 +396,7 @@
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
-      font-size: 13px;
+      font-size: 12px;
     }
 
     th, td {
@@ -469,7 +445,7 @@
     .helper-text {
       color: #b1b8c4;
       line-height: 1.75;
-      font-size: 13px;
+      font-size: 12px;
     }
 
     .meta-list {
@@ -705,11 +681,11 @@
     .dropdown-menu {
       position: absolute;
       top: calc(100% + 10px);
-      right: 0;
-      left: auto;
+      left: 0;
+      right: auto;
       min-width: 100%;
       width: max-content;
-      max-width: min(560px, calc(100vw - 36px));
+      max-width: min(680px, calc(100vw - 48px));
       background: #202229;
       border: 1px solid #3a3f4b;
       border-radius: 14px;
@@ -718,7 +694,8 @@
       display: none;
       z-index: 20;
       max-height: 280px;
-      overflow: auto;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
 
     .dropdown-anchor.open .dropdown-menu,
@@ -728,7 +705,7 @@
 
     .dropdown-option {
       width: 100%;
-      min-width: max-content;
+      min-width: 0;
       border: none;
       background: transparent;
       color: #e8edf6;
@@ -738,6 +715,12 @@
       cursor: pointer;
       display: block;
       white-space: nowrap;
+    }
+
+    .dropdown-menu[data-wrap="true"] .dropdown-option {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      line-height: 1.45;
     }
 
     .dropdown-option:hover,
@@ -751,6 +734,8 @@
       margin-top: 4px;
       color: #8f97a4;
       font-size: 11px;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
 
     .cell-dropdown {
@@ -819,6 +804,37 @@
       color: #61adff;
     }
 
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      min-width: 180px;
+      max-width: min(320px, calc(100vw - 32px));
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(46, 204, 113, .35);
+      background: rgba(17, 24, 34, .96);
+      color: #eafaf0;
+      box-shadow: 0 16px 28px rgba(0, 0, 0, .28);
+      font-size: 12px;
+      line-height: 1.5;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity .18s ease, transform .18s ease;
+      z-index: 80;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.error {
+      border-color: rgba(255, 107, 107, .35);
+      color: #ffe9e9;
+    }
+
     @media (max-width: 640px) {
       .hero {
         flex-direction: column;
@@ -870,14 +886,6 @@
               <path d="M8 16H3v5"></path>
             </svg>
           </button>
-          <button class="title-icon tune" type="button" aria-label="插件设置">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 17H5"></path>
-              <path d="M19 7h-9"></path>
-              <circle cx="17" cy="17" r="3"></circle>
-              <circle cx="7" cy="7" r="3"></circle>
-            </svg>
-          </button>
         </div>
         <div class="workbench-chip">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -896,21 +904,6 @@
       </div>
 
       <div class="request-card">
-        <div class="request-head">
-          <div>
-            <div class="eyebrow">TARGET</div>
-            <h2>方法与运行环境</h2>
-          </div>
-          <button class="refresh-btn" id="refresh-button" aria-label="refresh">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
-              <path d="M21 3v5h-5"></path>
-              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
-              <path d="M8 16H3v5"></path>
-            </svg>
-          </button>
-        </div>
-
         <div class="controls">
           <label class="field-wrap search">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -948,14 +941,6 @@
                 <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
               </svg>
             </button>
-            <button class="output-tool tune" type="button" aria-label="输出设置">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 17H5"></path>
-                <path d="M19 7h-9"></path>
-                <circle cx="17" cy="17" r="3"></circle>
-                <circle cx="7" cy="7" r="3"></circle>
-              </svg>
-            </button>
           </div>
         </div>
         <div class="output-meta">
@@ -966,6 +951,7 @@
       </div>
     </div>
   </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script>
     const initialState = __STATE_JSON__;
@@ -1024,12 +1010,6 @@
         <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path>
         <path d="m21.854 2.147-10.94 10.939"></path>
       `,
-      settings2: `
-        <path d="M14 17H5"></path>
-        <path d="M19 7h-9"></path>
-        <circle cx="17" cy="17" r="3"></circle>
-        <circle cx="7" cy="7" r="3"></circle>
-      `
     };
 
     function renderIcon(name, size = 15, className = '') {
@@ -1063,6 +1043,8 @@
         __EXECUTE_QUERY__
       });
     }
+
+    let toastTimer = null;
 
     const TOP_TABS = [
       { id: 'overview', label: '概览' },
@@ -1122,6 +1104,31 @@
 
     function currentRuntime() {
       return store.data.selectedRuntimeCommand || '';
+    }
+
+    function isControllerMethod(method = currentMethod()) {
+      return method && method.kind === 'CONTROLLER';
+    }
+
+    function visibleTopTabs(method = currentMethod()) {
+      if (isControllerMethod(method)) {
+        return TOP_TABS.filter(tab => tab.id !== 'params');
+      }
+      return TOP_TABS.filter(tab => tab.id !== 'query');
+    }
+
+    function normalizeActiveTab(method = currentMethod()) {
+      const tabs = visibleTopTabs(method);
+      if (!tabs.length) {
+        store.activeTab = 'overview';
+        return;
+      }
+      if (!tabs.some(tab => tab.id === store.activeTab)) {
+        store.activeTab = isControllerMethod(method) ? 'query' : 'params';
+        if (!tabs.some(tab => tab.id === store.activeTab)) {
+          store.activeTab = tabs[0].id;
+        }
+      }
     }
 
     function runtimePrimaryLabel(runtime) {
@@ -1193,6 +1200,7 @@
         store.editor = buildEditorFromMethod(currentMethod());
       }
       syncRequestMethodSupport();
+      normalizeActiveTab();
     }
 
     function syncRequestMethodSupport() {
@@ -1235,6 +1243,7 @@
         value: runtime ? runtime.command : currentRuntime(),
         label: runtimePrimaryLabel(runtime),
         leadingIcon: renderIcon('circleDot', 13, 'dropdown-leading'),
+        align: 'right',
         options: (store.data.runtimes || []).map(item => ({
           value: item.command,
           label: item.label
@@ -1252,6 +1261,8 @@
     function renderControls() {
       const searchInput = document.getElementById('search-input');
       const executeButton = document.getElementById('execute-button');
+      const requestMethodField = document.getElementById('request-method-dropdown')?.closest('.field-wrap');
+      const controllerMethod = isControllerMethod();
 
       searchInput.value = store.searchKeyword;
       searchInput.oninput = () => {
@@ -1273,6 +1284,8 @@
         id: 'method',
         value: selectedMethodValue,
         label: (visibleMethods.find(item => item.signature === selectedMethodValue) || visibleMethods[0] || {}).displayName || '未找到方法',
+        align: 'left',
+        wrap: true,
         options: visibleMethods.map(item => ({
           value: item.signature,
           label: item.displayName,
@@ -1281,36 +1294,45 @@
       });
       bindDropdown(methodContainer, 'method', value => {
         store.data.selectedMethodSignature = value;
-        store.activeTab = currentMethod()?.kind === 'CONTROLLER' ? 'query' : 'params';
+        store.activeTab = isControllerMethod(currentMethod()) ? 'query' : 'params';
         ensureSelection(true);
         render();
       });
 
       const requestMethodContainer = document.getElementById('request-method-dropdown');
-      requestMethodContainer.innerHTML = renderDropdown({
-        id: 'request-method',
-        value: store.editor ? store.editor.requestMethod : 'GET',
-        label: store.editor ? store.editor.requestMethod : 'GET',
-        options: HTTP_METHODS.map(method => ({
-          value: method,
-          label: method
-        }))
-      });
-      bindDropdown(requestMethodContainer, 'request-method', value => {
-        if (!store.editor) return;
-        store.editor.requestMethod = value;
-        syncRequestMethodSupport();
-        render();
-      });
+      if (requestMethodField) {
+        requestMethodField.style.display = controllerMethod ? '' : 'none';
+      }
+      if (controllerMethod) {
+        requestMethodContainer.innerHTML = renderDropdown({
+          id: 'request-method',
+          value: store.editor ? store.editor.requestMethod : 'GET',
+          label: store.editor ? store.editor.requestMethod : 'GET',
+          align: 'right',
+          options: HTTP_METHODS.map(method => ({
+            value: method,
+            label: method
+          }))
+        });
+        bindDropdown(requestMethodContainer, 'request-method', value => {
+          if (!store.editor) return;
+          store.editor.requestMethod = value;
+          syncRequestMethodSupport();
+          render();
+        });
+      } else {
+        requestMethodContainer.innerHTML = '';
+      }
 
       executeButton.disabled = !currentMethod() || (store.data.execution && store.data.execution.status === 'RUNNING');
       executeButton.onclick = triggerExecute;
-      document.getElementById('refresh-button').onclick = triggerRefresh;
     }
 
     function renderTabs() {
       const topTabs = document.getElementById('top-tabs');
-      topTabs.innerHTML = TOP_TABS.map(tab =>
+      const tabs = visibleTopTabs();
+      normalizeActiveTab();
+      topTabs.innerHTML = tabs.map(tab =>
         `<button class="tab ${store.activeTab === tab.id ? 'active' : ''}" data-tab="${tab.id}">${tab.label}</button>`
       ).join('');
       topTabs.querySelectorAll('.tab').forEach(tab => {
@@ -1584,14 +1606,14 @@
       store.editor[key][index][field] = target.value;
     }
 
-    function renderDropdown({ id, value, label, options, leadingIcon = '' }) {
+    function renderDropdown({ id, value, label, options, leadingIcon = '', align = 'left', wrap = false }) {
       return `
         <button class="dropdown-trigger" data-dropdown-trigger="${id}" type="button">
           ${leadingIcon}
           <span class="dropdown-label">${escapeHtml(label || '')}</span>
           ${renderIcon('chevronDown', 15, 'dropdown-icon')}
         </button>
-        <div class="dropdown-menu" data-dropdown-menu="${id}">
+        <div class="dropdown-menu" data-dropdown-menu="${id}" data-align="${escapeHtml(align)}" data-wrap="${wrap ? 'true' : 'false'}">
           ${options.map(option => `
             <button
               class="dropdown-option ${option.value === value ? 'active' : ''}"
@@ -1606,6 +1628,38 @@
       `;
     }
 
+    function layoutDropdownMenu(root, menu) {
+      const viewport = document.querySelector('.workspace') || document.body;
+      const viewportRect = viewport.getBoundingClientRect();
+      const rootRect = root.getBoundingClientRect();
+      const align = menu.getAttribute('data-align') || 'left';
+      const viewportPadding = 18;
+      const maxWidth = Math.max(260, viewportRect.width - viewportPadding * 2);
+
+      menu.style.left = '';
+      menu.style.right = '';
+      menu.style.width = '';
+      menu.style.minWidth = `${Math.max(rootRect.width, 180)}px`;
+      menu.style.maxWidth = `${maxWidth}px`;
+
+      const naturalWidth = Math.min(maxWidth, Math.max(rootRect.width, menu.scrollWidth + 8));
+      const availableRight = Math.max(rootRect.width, viewportRect.right - rootRect.left - viewportPadding);
+      const availableLeft = Math.max(rootRect.width, rootRect.right - viewportRect.left - viewportPadding);
+
+      if (align === 'right') {
+        menu.style.right = '0';
+        menu.style.left = 'auto';
+        menu.style.width = `${Math.min(naturalWidth, availableLeft)}px`;
+      } else {
+        menu.style.left = '0';
+        menu.style.right = 'auto';
+        menu.style.width = `${Math.min(naturalWidth, availableRight)}px`;
+      }
+
+      menu.scrollLeft = 0;
+      menu.scrollTop = 0;
+    }
+
     function bindDropdown(container, id, onSelect) {
       if (!container) return;
       const anchor = container.classList.contains('dropdown-anchor') ? container : container.querySelector('.dropdown-anchor');
@@ -1617,6 +1671,7 @@
 
       if (store.openDropdown === id) {
         root.classList.add('open');
+        layoutDropdownMenu(root, menu);
       } else {
         root.classList.remove('open');
       }
@@ -1646,6 +1701,47 @@
           onSelect(option.getAttribute('data-dropdown-value'));
         });
       });
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      if (!toast) {
+        if (type === 'success') {
+          alert(message);
+        }
+        return;
+      }
+      toast.textContent = message;
+      toast.classList.toggle('error', type === 'error');
+      toast.classList.add('show');
+      if (toastTimer) {
+        clearTimeout(toastTimer);
+      }
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 1800);
+    }
+
+    async function copyTextToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+
+      const helper = document.createElement('textarea');
+      helper.value = text;
+      helper.setAttribute('readonly', 'readonly');
+      helper.style.position = 'fixed';
+      helper.style.opacity = '0';
+      helper.style.pointerEvents = 'none';
+      document.body.appendChild(helper);
+      helper.select();
+      helper.setSelectionRange(0, helper.value.length);
+      const copied = document.execCommand('copy');
+      document.body.removeChild(helper);
+      if (!copied) {
+        throw new Error('copy failed');
+      }
     }
 
     function buildPayloadPreview() {
@@ -1784,10 +1880,18 @@
           render();
         }
       });
-      document.getElementById('copy-output').addEventListener('click', () => {
+      document.getElementById('copy-output').addEventListener('click', async () => {
         const text = document.getElementById('output-text').textContent || '';
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).catch(() => {});
+        if (!text.trim()) {
+          showToast('当前没有可复制的内容', 'error');
+          return;
+        }
+        try {
+          await copyTextToClipboard(text);
+          showToast('复制成功，结果已写入剪切板');
+        } catch (error) {
+          console.error(error);
+          showToast('复制失败，请稍后重试', 'error');
         }
       });
       try {
