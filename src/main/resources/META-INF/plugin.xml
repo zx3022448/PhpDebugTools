@@ -1,14 +1,14 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
     <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
-    <id>com.example.PhpDebugTools</id>
+    <id>com.zx3022448.PhpDebugTools</id>
 
     <!-- Public plugin name should be written in Title Case.
      Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-name -->
     <name>PhpDebugTools</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-    <vendor url="https://plugins.jetbrains.com/plugin/27886-phpdebugtools">PhpDebugTools</vendor>
+    <vendor url="https://github.com/zx3022448/PhpDebugTools">PhpDebugTools</vendor>
 
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
@@ -28,20 +28,20 @@
     <!-- Extensions defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
-        <backgroundPostStartupActivity implementation="com.example.phpdebugtools.startup.PhpDebugToolsProjectActivity"/>
+        <backgroundPostStartupActivity implementation="com.zx3022448.phpdebugtools.startup.PhpDebugToolsProjectActivity"/>
         <toolWindow id="PhpDebugTools" stripeTitle="PHP Debug Tools"
-                    factoryClass="com.example.phpdebugtools.toolwindow.PhpDebugToolsToolWindowFactory"
-                    icon="AllIcons.Toolwindows.ToolWindowPalette"/>
+                    factoryClass="com.zx3022448.phpdebugtools.toolwindow.PhpDebugToolsToolWindowFactory"
+                    icon="/icons/toolwindow.svg"/>
     </extensions>
 
     <actions>
         <action id="PhpDebugTools.DebugServiceMethod"
-                class="com.example.phpdebugtools.actions.DebugServiceMethodAction"
+                class="com.zx3022448.phpdebugtools.actions.DebugServiceMethodAction"
                 text="调试服务方法">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
         <action id="PhpDebugTools.DebugControllerMethod"
-                class="com.example.phpdebugtools.actions.DebugControllerMethodAction"
+                class="com.zx3022448.phpdebugtools.actions.DebugControllerMethodAction"
                 text="调试控制器方法">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>

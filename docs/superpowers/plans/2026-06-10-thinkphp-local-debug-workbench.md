@@ -123,7 +123,7 @@
 - [ ] **步骤 1：先写一个失败的项目识别测试**
 
 ```kotlin
-package com.example.phpdebugtools.project
+package com.zx3022448.phpdebugtools.project
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -154,14 +154,14 @@ class ThinkPhpProjectDetectorTest {
 
 - [ ] **步骤 2：运行测试，确认它先失败**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.project.ThinkPhpProjectDetectorTest" --info`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.project.ThinkPhpProjectDetectorTest" --info`
 
 预期：FAIL，提示 `ThinkPhpProjectDetector` 和 `ThinkPhpProjectInfo` 未解析。
 
 - [ ] **步骤 3：实现最小可用的项目识别逻辑**
 
 ```kotlin
-package com.example.phpdebugtools.project
+package com.zx3022448.phpdebugtools.project
 
 data class ThinkPhpProjectInfo(
     val isThinkPhp: Boolean,
@@ -173,7 +173,7 @@ data class ThinkPhpProjectInfo(
 ```
 
 ```kotlin
-package com.example.phpdebugtools.project
+package com.zx3022448.phpdebugtools.project
 
 class ThinkPhpProjectDetector {
     companion object {
@@ -218,7 +218,7 @@ class ThinkPhpProjectDetector {
 ```
 
 ```kotlin
-package com.example.phpdebugtools
+package com.zx3022448.phpdebugtools
 
 import com.intellij.DynamicBundle
 import org.jetbrains.annotations.PropertyKey
@@ -242,7 +242,7 @@ overview.project.detected=ThinkPHP {0} project detected
 
 - [ ] **步骤 4：再次运行测试，确认通过**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.project.ThinkPhpProjectDetectorTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.project.ThinkPhpProjectDetectorTest"`
 
 预期：PASS，显示 `1 test completed, 0 failed`。
 
@@ -271,7 +271,7 @@ git commit -m "feat: add thinkphp project detection core"
 - [ ] **步骤 1：先写运行时安装失败测试**
 
 ```kotlin
-package com.example.phpdebugtools.runtime
+package com.zx3022448.phpdebugtools.runtime
 
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -298,14 +298,14 @@ class RuntimeInstallerTest {
 
 - [ ] **步骤 2：运行测试，确认先失败**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.runtime.RuntimeInstallerTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.runtime.RuntimeInstallerTest"`
 
 预期：FAIL，提示 `RuntimeInstaller`、`RuntimeTemplate`、`RuntimeInstallResult` 未解析。
 
 - [ ] **步骤 3：实现运行时清单、安装器和内置模板**
 
 ```kotlin
-package com.example.phpdebugtools.runtime
+package com.zx3022448.phpdebugtools.runtime
 
 data class RuntimeTemplate(
     val relativePath: String,
@@ -314,7 +314,7 @@ data class RuntimeTemplate(
 ```
 
 ```kotlin
-package com.example.phpdebugtools.runtime
+package com.zx3022448.phpdebugtools.runtime
 
 data class RuntimeInstallResult(
     val runtimeRoot: String,
@@ -324,7 +324,7 @@ data class RuntimeInstallResult(
 ```
 
 ```kotlin
-package com.example.phpdebugtools.runtime
+package com.zx3022448.phpdebugtools.runtime
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -447,7 +447,7 @@ echo json_encode([
 
 - [ ] **步骤 4：再次运行安装器测试**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.runtime.RuntimeInstallerTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.runtime.RuntimeInstallerTest"`
 
 预期：PASS，并且临时项目目录下存在 `.php-debug-tools/` 运行时文件。
 
@@ -470,7 +470,7 @@ git commit -m "feat: add project runtime installer"
 - [ ] **步骤 1：先写一个缺少 Xdebug 的失败测试**
 
 ```kotlin
-package com.example.phpdebugtools.diagnostics
+package com.zx3022448.phpdebugtools.diagnostics
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -499,14 +499,14 @@ class EnvironmentDiagnosticServiceTest {
 
 - [ ] **步骤 2：运行测试，确认先失败**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.diagnostics.EnvironmentDiagnosticServiceTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.diagnostics.EnvironmentDiagnosticServiceTest"`
 
 预期：FAIL，提示诊断相关类型未解析。
 
 - [ ] **步骤 3：实现诊断模型和诊断服务**
 
 ```kotlin
-package com.example.phpdebugtools.diagnostics
+package com.zx3022448.phpdebugtools.diagnostics
 
 enum class DiagnosticStage {
     IDE,
@@ -517,7 +517,7 @@ enum class DiagnosticStage {
 ```
 
 ```kotlin
-package com.example.phpdebugtools.diagnostics
+package com.zx3022448.phpdebugtools.diagnostics
 
 data class DiagnosticFinding(
     val stage: DiagnosticStage,
@@ -528,7 +528,7 @@ data class DiagnosticFinding(
 ```
 
 ```kotlin
-package com.example.phpdebugtools.diagnostics
+package com.zx3022448.phpdebugtools.diagnostics
 
 data class CommandResult(
     val exitCode: Int,
@@ -542,7 +542,7 @@ fun interface CommandRunner {
 ```
 
 ```kotlin
-package com.example.phpdebugtools.diagnostics
+package com.zx3022448.phpdebugtools.diagnostics
 
 class EnvironmentDiagnosticService(private val commandRunner: CommandRunner) {
     fun inspect(phpExecutable: String): List<DiagnosticFinding> {
@@ -576,7 +576,7 @@ class EnvironmentDiagnosticService(private val commandRunner: CommandRunner) {
 
 - [ ] **步骤 4：再次运行诊断测试**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.diagnostics.EnvironmentDiagnosticServiceTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.diagnostics.EnvironmentDiagnosticServiceTest"`
 
 预期：PASS，并返回一个 `PHP_XDEBUG` 层级的诊断项。
 
@@ -604,7 +604,7 @@ git commit -m "feat: add php and xdebug diagnostics service"
 - [ ] **步骤 1：先写概览状态和 CLI 命令构建器的失败测试**
 
 ```kotlin
-package com.example.phpdebugtools.toolwindow
+package com.zx3022448.phpdebugtools.toolwindow
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -624,7 +624,7 @@ class OverviewViewStateTest {
 ```
 
 ```kotlin
-package com.example.phpdebugtools.execution
+package com.zx3022448.phpdebugtools.execution
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -650,14 +650,14 @@ class CliDebugCommandBuilderTest {
 
 - [ ] **步骤 2：运行测试，确认先失败**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.toolwindow.OverviewViewStateTest" --tests "com.example.phpdebugtools.execution.CliDebugCommandBuilderTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.toolwindow.OverviewViewStateTest" --tests "com.zx3022448.phpdebugtools.execution.CliDebugCommandBuilderTest"`
 
 预期：FAIL，提示 `OverviewViewState` 和 `CliDebugCommandBuilder` 未解析。
 
 - [ ] **步骤 3：实现工具窗口外壳和 CLI 命令构建器**
 
 ```kotlin
-package com.example.phpdebugtools.toolwindow
+package com.zx3022448.phpdebugtools.toolwindow
 
 data class OverviewViewState(
     val projectSummary: String,
@@ -667,7 +667,7 @@ data class OverviewViewState(
 ```
 
 ```kotlin
-package com.example.phpdebugtools.execution
+package com.zx3022448.phpdebugtools.execution
 
 import java.nio.file.Path
 
@@ -682,7 +682,7 @@ sealed class DebugRequest {
 ```
 
 ```kotlin
-package com.example.phpdebugtools.execution
+package com.zx3022448.phpdebugtools.execution
 
 import java.nio.file.Path
 
@@ -703,7 +703,7 @@ object CliDebugCommandBuilder {
 ```
 
 ```kotlin
-package com.example.phpdebugtools.persistence
+package com.zx3022448.phpdebugtools.persistence
 
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
@@ -729,7 +729,7 @@ class RecentDebugStore : PersistentStateComponent<RecentDebugStore.State> {
 ```
 
 ```kotlin
-package com.example.phpdebugtools.toolwindow
+package com.zx3022448.phpdebugtools.toolwindow
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
@@ -758,7 +758,7 @@ class PhpDebugToolsToolWindowFactory : ToolWindowFactory {
 ```
 
 ```kotlin
-package com.example.phpdebugtools.toolwindow
+package com.zx3022448.phpdebugtools.toolwindow
 
 import javax.swing.JComponent
 import javax.swing.JTabbedPane
@@ -774,14 +774,14 @@ class PhpDebugToolsToolWindowPanel(private val tabs: JTabbedPane) : JComponent()
 ```xml
 <extensions defaultExtensionNs="com.intellij">
     <toolWindow id="PhpDebugTools"
-                factoryClass="com.example.phpdebugtools.toolwindow.PhpDebugToolsToolWindowFactory"
+                factoryClass="com.zx3022448.phpdebugtools.toolwindow.PhpDebugToolsToolWindowFactory"
                 icon="AllIcons.Toolwindows.ToolWindowPalette"/>
 </extensions>
 ```
 
 - [ ] **步骤 4：再次运行测试**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.toolwindow.OverviewViewStateTest" --tests "com.example.phpdebugtools.execution.CliDebugCommandBuilderTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.toolwindow.OverviewViewStateTest" --tests "com.zx3022448.phpdebugtools.execution.CliDebugCommandBuilderTest"`
 
 预期：PASS，两个测试都通过。
 
@@ -805,7 +805,7 @@ git commit -m "feat: add tool window shell and cli debug core"
 - [ ] **步骤 1：先写平台侧失败测试**
 
 ```kotlin
-package com.example.phpdebugtools.methods
+package com.zx3022448.phpdebugtools.methods
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
@@ -833,14 +833,14 @@ class PhpMethodTargetResolverTest : BasePlatformTestCase() {
 
 - [ ] **步骤 2：运行平台测试，确认先失败**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.methods.PhpMethodTargetResolverTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.methods.PhpMethodTargetResolverTest"`
 
 预期：FAIL，提示 `PhpMethodTargetResolver`、`MethodKind`、`MethodDebugTarget` 未解析。
 
 - [ ] **步骤 3：实现方法分类和参数模式推断**
 
 ```kotlin
-package com.example.phpdebugtools.methods
+package com.zx3022448.phpdebugtools.methods
 
 enum class MethodKind {
     CONTROLLER,
@@ -849,7 +849,7 @@ enum class MethodKind {
 ```
 
 ```kotlin
-package com.example.phpdebugtools.methods
+package com.zx3022448.phpdebugtools.methods
 
 data class MethodParameterSchema(
     val name: String,
@@ -860,7 +860,7 @@ data class MethodParameterSchema(
 ```
 
 ```kotlin
-package com.example.phpdebugtools.methods
+package com.zx3022448.phpdebugtools.methods
 
 data class MethodDebugTarget(
     val kind: MethodKind,
@@ -872,7 +872,7 @@ data class MethodDebugTarget(
 ```
 
 ```kotlin
-package com.example.phpdebugtools.methods
+package com.zx3022448.phpdebugtools.methods
 
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiTreeUtil
@@ -912,7 +912,7 @@ object PhpMethodTargetResolver {
 
 - [ ] **步骤 4：再次运行平台测试**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.methods.PhpMethodTargetResolverTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.methods.PhpMethodTargetResolverTest"`
 
 预期：PASS，能从测试夹具中正确解析控制器方法。
 
@@ -936,10 +936,10 @@ git commit -m "feat: resolve php method targets from editor caret"
 - [ ] **步骤 1：先写服务方法执行失败测试**
 
 ```kotlin
-package com.example.phpdebugtools.execution
+package com.zx3022448.phpdebugtools.execution
 
-import com.example.phpdebugtools.diagnostics.CommandResult
-import com.example.phpdebugtools.diagnostics.CommandRunner
+import com.zx3022448.phpdebugtools.diagnostics.CommandResult
+import com.zx3022448.phpdebugtools.diagnostics.CommandRunner
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.nio.file.Paths
@@ -964,14 +964,14 @@ class RuntimeExecutorServiceTest {
 
 - [ ] **步骤 2：运行失败测试**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.execution.RuntimeExecutorServiceTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.execution.RuntimeExecutorServiceTest"`
 
 预期：FAIL，提示 `RuntimeExecutor` 和 `DebugExecutionResult` 未解析。
 
 - [ ] **步骤 3：实现运行时执行、负载序列化和服务方法动作**
 
 ```kotlin
-package com.example.phpdebugtools.execution
+package com.zx3022448.phpdebugtools.execution
 
 data class DebugExecutionResult(
     val status: String,
@@ -982,7 +982,7 @@ data class DebugExecutionResult(
 ```
 
 ```kotlin
-package com.example.phpdebugtools.execution
+package com.zx3022448.phpdebugtools.execution
 
 object RuntimeJson {
     fun servicePayload(
@@ -1005,9 +1005,9 @@ object RuntimeJson {
 ```
 
 ```kotlin
-package com.example.phpdebugtools.execution
+package com.zx3022448.phpdebugtools.execution
 
-import com.example.phpdebugtools.diagnostics.CommandRunner
+import com.zx3022448.phpdebugtools.diagnostics.CommandRunner
 import java.nio.file.Path
 
 class RuntimeExecutor(private val commandRunner: CommandRunner) {
@@ -1022,9 +1022,9 @@ class RuntimeExecutor(private val commandRunner: CommandRunner) {
 ```
 
 ```kotlin
-package com.example.phpdebugtools.ui
+package com.zx3022448.phpdebugtools.ui
 
-import com.example.phpdebugtools.methods.MethodDebugTarget
+import com.zx3022448.phpdebugtools.methods.MethodDebugTarget
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBTextArea
@@ -1049,11 +1049,11 @@ class ServiceMethodDialog(project: Project, private val target: MethodDebugTarge
 ```
 
 ```kotlin
-package com.example.phpdebugtools.actions
+package com.zx3022448.phpdebugtools.actions
 
-import com.example.phpdebugtools.methods.MethodKind
-import com.example.phpdebugtools.methods.PhpMethodTargetResolver
-import com.example.phpdebugtools.ui.ServiceMethodDialog
+import com.zx3022448.phpdebugtools.methods.MethodKind
+import com.zx3022448.phpdebugtools.methods.PhpMethodTargetResolver
+import com.zx3022448.phpdebugtools.ui.ServiceMethodDialog
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -1071,7 +1071,7 @@ class DebugServiceMethodAction : AnAction("调试服务方法") {
 
 - [ ] **步骤 4：再次运行服务方法执行测试**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.execution.RuntimeExecutorServiceTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.execution.RuntimeExecutorServiceTest"`
 
 预期：PASS，结果中 `status=ok` 且 `stage=target`。
 
@@ -1095,7 +1095,7 @@ git commit -m "feat: add service method runtime execution flow"
 - [ ] **步骤 1：先写 Web URL 构建器失败测试**
 
 ```kotlin
-package com.example.phpdebugtools.execution
+package com.zx3022448.phpdebugtools.execution
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -1119,14 +1119,14 @@ class WebDebugUrlBuilderTest {
 
 - [ ] **步骤 2：运行测试，确认先失败**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.execution.WebDebugUrlBuilderTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.execution.WebDebugUrlBuilderTest"`
 
 预期：FAIL，提示 `WebDebugUrlBuilder` 未解析。
 
 - [ ] **步骤 3：实现控制器弹窗、动作、运行时脚本和 Web URL 构建器**
 
 ```kotlin
-package com.example.phpdebugtools.execution
+package com.zx3022448.phpdebugtools.execution
 
 object WebDebugUrlBuilder {
     fun build(baseUrl: String, runtimePath: String, payloadFile: String): String {
@@ -1137,9 +1137,9 @@ object WebDebugUrlBuilder {
 ```
 
 ```kotlin
-package com.example.phpdebugtools.ui
+package com.zx3022448.phpdebugtools.ui
 
-import com.example.phpdebugtools.methods.MethodDebugTarget
+import com.zx3022448.phpdebugtools.methods.MethodDebugTarget
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBTextArea
@@ -1172,11 +1172,11 @@ class ControllerMethodDialog(project: Project, private val target: MethodDebugTa
 ```
 
 ```kotlin
-package com.example.phpdebugtools.actions
+package com.zx3022448.phpdebugtools.actions
 
-import com.example.phpdebugtools.methods.MethodKind
-import com.example.phpdebugtools.methods.PhpMethodTargetResolver
-import com.example.phpdebugtools.ui.ControllerMethodDialog
+import com.zx3022448.phpdebugtools.methods.MethodKind
+import com.zx3022448.phpdebugtools.methods.PhpMethodTargetResolver
+import com.zx3022448.phpdebugtools.ui.ControllerMethodDialog
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -1235,7 +1235,7 @@ echo json_encode([
 
 - [ ] **步骤 4：再次运行 Web URL 构建测试**
 
-运行：`.\gradlew.bat test --tests "com.example.phpdebugtools.execution.WebDebugUrlBuilderTest"`
+运行：`.\gradlew.bat test --tests "com.zx3022448.phpdebugtools.execution.WebDebugUrlBuilderTest"`
 
 预期：PASS，生成的受控调试 URL 与预期完全一致。
 
@@ -1259,10 +1259,10 @@ git commit -m "feat: add controller and web debug execution flow"
 ```xml
 <actions>
     <action id="PhpDebugTools.DebugServiceMethod"
-            class="com.example.phpdebugtools.actions.DebugServiceMethodAction"
+            class="com.zx3022448.phpdebugtools.actions.DebugServiceMethodAction"
             text="调试服务方法"/>
     <action id="PhpDebugTools.DebugControllerMethod"
-            class="com.example.phpdebugtools.actions.DebugControllerMethodAction"
+            class="com.zx3022448.phpdebugtools.actions.DebugControllerMethodAction"
             text="调试控制器方法"/>
 </actions>
 ```
