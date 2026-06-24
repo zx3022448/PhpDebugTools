@@ -20,12 +20,44 @@
       --yellow: #f6c915;
       --green: #2ecc71;
       --red: #ff6b6b;
+      --scrollbar-track: #17181d;
+      --scrollbar-thumb: #343842;
+      --scrollbar-thumb-hover: #464b57;
       --shadow: 0 20px 60px rgba(0, 0, 0, .28);
       --radius-shell: 18px;
       --radius-card: 16px;
     }
 
     * { box-sizing: border-box; }
+
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    }
+
+    *::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: var(--scrollbar-track);
+      border-radius: 999px;
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      border: 2px solid var(--scrollbar-track);
+      border-radius: 999px;
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+      background: var(--scrollbar-thumb-hover);
+    }
+
+    *::-webkit-scrollbar-corner {
+      background: var(--scrollbar-track);
+    }
 
     html, body {
       margin: 0;
@@ -235,9 +267,20 @@
     }
 
     .controls {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) 88px 50px;
+      display: flex;
+      align-items: center;
       gap: 10px;
+      min-width: 0;
+    }
+
+    .controls .field-wrap.method {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .controls .field-wrap.request-method {
+      flex: 0 0 88px;
+      min-width: 88px;
     }
 
     .field-wrap {
@@ -276,7 +319,11 @@
     }
 
     .send-btn {
+      width: 42px;
+      flex: 0 0 42px;
       min-height: 42px;
+      min-width: 42px;
+      justify-self: end;
       border-radius: 999px;
       border: none;
       background: linear-gradient(180deg, #2490ff 0%, #0d78f2 100%);
@@ -670,6 +717,28 @@
       white-space: nowrap;
     }
 
+    .dropdown-trigger-editable {
+      cursor: text;
+    }
+
+    .dropdown-input {
+      flex: 1 1 auto;
+      min-width: 0;
+      width: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: inherit;
+      padding: 0;
+    }
+
+    .dropdown-input::placeholder {
+      color: #cfd5df;
+      font-weight: 600;
+    }
+
     .dropdown-trigger .dropdown-icon {
       color: #8d94a0;
     }
@@ -736,6 +805,12 @@
       font-size: 11px;
       white-space: normal;
       overflow-wrap: anywhere;
+    }
+
+    .dropdown-empty {
+      padding: 10px 12px;
+      color: #8f97a4;
+      font-size: 12px;
     }
 
     .cell-dropdown {
@@ -840,7 +915,6 @@
         flex-direction: column;
       }
 
-      .controls,
       .metrics-row {
         grid-template-columns: 1fr;
       }
@@ -905,17 +979,10 @@
 
       <div class="request-card">
         <div class="controls">
-          <label class="field-wrap search">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="m21 21-4.34-4.34"></path>
-              <circle cx="11" cy="11" r="8"></circle>
-            </svg>
-            <input class="field-input" id="search-input" placeholder="搜索类、方法、命名空间">
-          </label>
           <div class="field-wrap method select">
             <div class="dropdown-anchor" id="method-dropdown"></div>
           </div>
-          <div class="field-wrap select">
+          <div class="field-wrap select request-method">
             <div class="dropdown-anchor" id="request-method-dropdown"></div>
           </div>
           <button class="send-btn" id="execute-button" aria-label="execute">
@@ -1073,6 +1140,7 @@
     const store = {
       data: initialState,
       searchKeyword: '',
+      methodInputLabel: '',
       activeTab: 'query',
       activeRequestTab: 'query',
       activeOutputTab: 'result',
@@ -1259,33 +1327,28 @@
     }
 
     function renderControls() {
-      const searchInput = document.getElementById('search-input');
       const executeButton = document.getElementById('execute-button');
       const requestMethodField = document.getElementById('request-method-dropdown')?.closest('.field-wrap');
       const controllerMethod = isControllerMethod();
-
-      searchInput.value = store.searchKeyword;
-      searchInput.oninput = () => {
-        store.searchKeyword = searchInput.value;
-        const visibleMethods = filteredMethods();
-        if (visibleMethods.length && !visibleMethods.some(item => item.signature === store.data.selectedMethodSignature)) {
-          store.data.selectedMethodSignature = visibleMethods[0].signature;
-          ensureSelection(true);
-        }
-        render();
-      };
 
       const visibleMethods = filteredMethods();
       const selectedMethodValue = visibleMethods.some(item => item.signature === store.data.selectedMethodSignature)
         ? store.data.selectedMethodSignature
         : (visibleMethods[0] ? visibleMethods[0].signature : '');
+      const selectedMethod = visibleMethods.find(item => item.signature === selectedMethodValue) || visibleMethods[0] || currentMethod();
+      const methodLabel = selectedMethod ? selectedMethod.displayName : '';
       const methodContainer = document.getElementById('method-dropdown');
       methodContainer.innerHTML = renderDropdown({
         id: 'method',
         value: selectedMethodValue,
-        label: (visibleMethods.find(item => item.signature === selectedMethodValue) || visibleMethods[0] || {}).displayName || '未找到方法',
+        label: methodLabel || '未找到方法',
+        editable: true,
+        inputId: 'method-input',
+        inputValue: store.searchKeyword || store.methodInputLabel,
+        placeholder: '输入类、方法或命名空间搜索',
         align: 'left',
         wrap: true,
+        emptyLabel: '未找到匹配方法',
         options: visibleMethods.map(item => ({
           value: item.signature,
           label: item.displayName,
@@ -1294,10 +1357,13 @@
       });
       bindDropdown(methodContainer, 'method', value => {
         store.data.selectedMethodSignature = value;
+        store.searchKeyword = '';
+        store.methodInputLabel = (currentMethods().find(item => item.signature === value) || {}).displayName || '';
         store.activeTab = isControllerMethod(currentMethod()) ? 'query' : 'params';
         ensureSelection(true);
         render();
       });
+      bindMethodInput();
 
       const requestMethodContainer = document.getElementById('request-method-dropdown');
       if (requestMethodField) {
@@ -1326,6 +1392,54 @@
 
       executeButton.disabled = !currentMethod() || (store.data.execution && store.data.execution.status === 'RUNNING');
       executeButton.onclick = triggerExecute;
+    }
+
+    function bindMethodInput() {
+      const input = document.getElementById('method-input');
+      if (!input) {
+        return;
+      }
+      input.addEventListener('focus', () => {
+        store.openDropdown = 'method';
+      });
+      input.addEventListener('input', () => {
+        store.searchKeyword = input.value;
+        store.methodInputLabel = '';
+        store.openDropdown = 'method';
+        const visibleMethods = filteredMethods();
+        if (visibleMethods.length && !visibleMethods.some(item => item.signature === store.data.selectedMethodSignature)) {
+          store.data.selectedMethodSignature = visibleMethods[0].signature;
+          ensureSelection(true);
+        }
+        render();
+        const nextInput = document.getElementById('method-input');
+        if (nextInput) {
+          nextInput.focus();
+          const cursor = nextInput.value.length;
+          nextInput.setSelectionRange(cursor, cursor);
+        }
+      });
+      input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          const first = filteredMethods()[0];
+          if (!first) {
+            return;
+          }
+          event.preventDefault();
+          store.data.selectedMethodSignature = first.signature;
+          store.searchKeyword = '';
+          store.methodInputLabel = first.displayName || '';
+          store.openDropdown = null;
+          store.activeTab = isControllerMethod(first) ? 'query' : 'params';
+          ensureSelection(true);
+          render();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          store.searchKeyword = '';
+          store.openDropdown = null;
+          render();
+        }
+      });
     }
 
     function renderTabs() {
@@ -1606,15 +1720,46 @@
       store.editor[key][index][field] = target.value;
     }
 
-    function renderDropdown({ id, value, label, options, leadingIcon = '', align = 'left', wrap = false }) {
-      return `
+    function renderDropdown({
+      id,
+      value,
+      label,
+      options,
+      leadingIcon = '',
+      align = 'left',
+      wrap = false,
+      editable = false,
+      inputId = '',
+      inputValue = '',
+      placeholder = '',
+      emptyLabel = ''
+    }) {
+      const trigger = editable
+        ? `
+        <div class="dropdown-trigger dropdown-trigger-editable" data-dropdown-trigger="${id}" role="combobox" aria-expanded="${store.openDropdown === id ? 'true' : 'false'}">
+          ${leadingIcon}
+          <input
+            class="dropdown-input"
+            id="${escapeHtml(inputId)}"
+            value="${escapeHtml(inputValue)}"
+            placeholder="${escapeHtml(placeholder)}"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          ${renderIcon('chevronDown', 15, 'dropdown-icon')}
+        </div>
+      `
+        : `
         <button class="dropdown-trigger" data-dropdown-trigger="${id}" type="button">
           ${leadingIcon}
           <span class="dropdown-label">${escapeHtml(label || '')}</span>
           ${renderIcon('chevronDown', 15, 'dropdown-icon')}
         </button>
+      `;
+      return `
+        ${trigger}
         <div class="dropdown-menu" data-dropdown-menu="${id}" data-align="${escapeHtml(align)}" data-wrap="${wrap ? 'true' : 'false'}">
-          ${options.map(option => `
+          ${options.length ? options.map(option => `
             <button
               class="dropdown-option ${option.value === value ? 'active' : ''}"
               data-dropdown-value="${escapeHtml(option.value)}"
@@ -1623,7 +1768,7 @@
               ${escapeHtml(option.label)}
               ${option.detail ? `<small>${escapeHtml(option.detail)}</small>` : ''}
             </button>
-          `).join('')}
+          `).join('') : `<div class="dropdown-empty">${escapeHtml(emptyLabel || '暂无选项')}</div>`}
         </div>
       `;
     }
@@ -1678,8 +1823,19 @@
 
       trigger.onclick = event => {
         event.stopPropagation();
-        store.openDropdown = store.openDropdown === id ? null : id;
+        const inputTarget = event.target.closest('.dropdown-input');
+        if (inputTarget) {
+          store.openDropdown = id;
+        } else {
+          store.openDropdown = store.openDropdown === id ? null : id;
+        }
         render();
+        if (inputTarget && inputTarget.id) {
+          const nextInput = document.getElementById(inputTarget.id);
+          if (nextInput) {
+            nextInput.focus();
+          }
+        }
       };
 
       clickTarget.onclick = event => {

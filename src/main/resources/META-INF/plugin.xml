@@ -31,7 +31,7 @@
         <backgroundPostStartupActivity implementation="com.example.phpdebugtools.startup.PhpDebugToolsProjectActivity"/>
         <toolWindow id="PhpDebugTools" stripeTitle="PHP Debug Tools"
                     factoryClass="com.example.phpdebugtools.toolwindow.PhpDebugToolsToolWindowFactory"
-                    icon="AllIcons.Toolwindows.ToolWindowPalette"/>
+                    icon="/icons/toolwindow.svg"/>
     </extensions>
 
     <actions>
