@@ -1,4 +1,4 @@
-package com.example
+package com.zx3022448
 
 import com.intellij.DynamicBundle
 import org.jetbrains.annotations.PropertyKey

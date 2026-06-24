@@ -33,11 +33,11 @@
 **入口：** `plugin.xml` 声明所有扩展点。当前通过 `MyToolWindowFactory` 注册了一个工具窗口（`MyToolWindow`）。
 
 **源码结构：**
-- `src/main/kotlin/` — Kotlin 插件代码（包名 `com.example`）
+- `src/main/kotlin/` — Kotlin 插件代码（包名 `com.zx3022448`）
 - `src/main/resources/META-INF/plugin.xml` — 插件清单及扩展声明
 - `src/main/resources/messages/MyMessageBundle.properties` — UI 字符串（通过 `MyMessageBundle` 访问）
 
-**插件 ID：** `com.example.PhpDebugTools` — 版本间不可更改。
+**插件 ID：** `com.zx3022448.PhpDebugTools` — 版本间不可更改。
 
 添加新功能时，在 `plugin.xml` 对应的 `<extensions>` 块中注册。新的 UI 字符串写入 `MyMessageBundle.properties`，通过 `MyMessageBundle.message("key")` 访问。
 
