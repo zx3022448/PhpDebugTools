@@ -27,6 +27,7 @@ object RuntimeJson {
         classFqn: String,
         methodName: String,
         isStatic: Boolean,
+        requestPath: String,
         requestMethod: String,
         queryJson: String,
         headerJson: String,
@@ -35,6 +36,7 @@ object RuntimeJson {
         argsJson: String,
     ): String {
         val normalizedRequestMethod = requestMethod.trim().uppercase().ifEmpty { "GET" }
+        val normalizedRequestPath = requestPath.trim()
         val normalizedQuery = queryJson.trim().ifEmpty { "{}" }
         val normalizedHeader = headerJson.trim().ifEmpty { "{}" }
         val normalizedBodyMode = bodyMode.trim().ifEmpty { "none" }
@@ -66,6 +68,7 @@ object RuntimeJson {
             append("\"method\":\"").append(escape(methodName)).append("\",")
             append("\"static\":").append(isStatic).append(",")
             append("\"request\":{")
+            append("\"path\":\"").append(escape(normalizedRequestPath)).append("\",")
             append("\"method\":\"").append(escape(normalizedRequestMethod)).append("\",")
             append("\"query\":").append(normalizedQuery).append(",")
             append("\"headers\":").append(normalizedHeader).append(",")

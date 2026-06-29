@@ -3,6 +3,7 @@ package com.zx3022448.phpdebugtools.toolwindow
 import com.zx3022448.phpdebugtools.execution.DebugExecutionResult
 import com.zx3022448.phpdebugtools.execution.DetectedPhpRuntime
 import com.zx3022448.phpdebugtools.execution.MethodInvokeExecutor
+import com.zx3022448.phpdebugtools.execution.MethodInvokeExecution
 import com.zx3022448.phpdebugtools.execution.MethodInvokeRequest
 import com.zx3022448.phpdebugtools.execution.PhpRuntimeDetector
 import com.zx3022448.phpdebugtools.execution.ProcessCommandRunner
@@ -33,6 +34,7 @@ import java.awt.BorderLayout
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CancellationException
 
 /**
  * 使用 JCEF 承载参考 UI，并将旧 Swing 面板已有的扫描、运行时探测和方法执行能力接入网页层。
@@ -59,6 +61,7 @@ class PhpDebugToolsJcefToolWindowPanel(
     private var readyQuery: JBCefJSQuery? = null
     private var refreshQuery: JBCefJSQuery? = null
     private var executeQuery: JBCefJSQuery? = null
+    private var stopQuery: JBCefJSQuery? = null
     private var workspaceState = createLazyWorkspaceState()
     private var pageReady = false
     private var pendingStateJson: String? = null
@@ -67,6 +70,9 @@ class PhpDebugToolsJcefToolWindowPanel(
     private var selectedMethodSignature: String? = null
     private var selectedRuntimeCommand: String = DEFAULT_RUNTIME_COMMAND
     private var browserInitializationRequested = false
+    private val executionLock = Any()
+    private var activeExecutionId = 0L
+    private var activeExecution: MethodInvokeExecution? = null
     private var executionState = FrontendExecutionState.idle(
         methodSignature = DEFAULT_METHOD_TITLE,
         parameterCount = DEFAULT_QUERY_ROWS.size,
@@ -99,9 +105,11 @@ class PhpDebugToolsJcefToolWindowPanel(
     }
 
     override fun dispose() {
+        cancelActiveExecutionOnly()
         readyQuery?.dispose()
         refreshQuery?.dispose()
         executeQuery?.dispose()
+        stopQuery?.dispose()
         browser?.dispose()
     }
 
@@ -144,13 +152,15 @@ class PhpDebugToolsJcefToolWindowPanel(
         val currentReadyQuery = JBCefJSQuery.create(currentBrowser)
         val currentRefreshQuery = JBCefJSQuery.create(currentBrowser)
         val currentExecuteQuery = JBCefJSQuery.create(currentBrowser)
+        val currentStopQuery = JBCefJSQuery.create(currentBrowser)
 
         browser = currentBrowser
         readyQuery = currentReadyQuery
         refreshQuery = currentRefreshQuery
         executeQuery = currentExecuteQuery
+        stopQuery = currentStopQuery
 
-        installBridge(currentReadyQuery, currentRefreshQuery, currentExecuteQuery)
+        installBridge(currentReadyQuery, currentRefreshQuery, currentExecuteQuery, currentStopQuery)
         browserHost.removeAll()
         browserHost.add(currentBrowser.component, BorderLayout.CENTER)
         browserHost.revalidate()
@@ -176,6 +186,7 @@ class PhpDebugToolsJcefToolWindowPanel(
         readyQuery: JBCefJSQuery,
         refreshQuery: JBCefJSQuery,
         executeQuery: JBCefJSQuery,
+        stopQuery: JBCefJSQuery,
     ) {
         readyQuery.addHandler {
             pageReady = true
@@ -204,6 +215,11 @@ class PhpDebugToolsJcefToolWindowPanel(
             executeInBackground(request)
             JBCefJSQuery.Response("""{"accepted":true}""")
         }
+
+        stopQuery.addHandler {
+            val stopped = stopActiveExecution()
+            JBCefJSQuery.Response("""{"accepted":$stopped}""")
+        }
     }
 
     private fun render() {
@@ -211,11 +227,13 @@ class PhpDebugToolsJcefToolWindowPanel(
         val readyQuery = readyQuery ?: return
         val refreshQuery = refreshQuery ?: return
         val executeQuery = executeQuery ?: return
+        val stopQuery = stopQuery ?: return
         val html = loadTemplate()
             .replace(STATE_PLACEHOLDER, currentStateJson())
             .replace(READY_QUERY_PLACEHOLDER, readyQuery.inject("JSON.stringify(payload)", "onSuccess", "onError"))
             .replace(REFRESH_QUERY_PLACEHOLDER, refreshQuery.inject("JSON.stringify(payload)", "onSuccess", "onError"))
             .replace(EXECUTE_QUERY_PLACEHOLDER, executeQuery.inject("JSON.stringify(payload)", "onSuccess", "onError"))
+            .replace(STOP_QUERY_PLACEHOLDER, stopQuery.inject("JSON.stringify(payload)", "onSuccess", "onError"))
         browser.loadHTML(html)
     }
 
@@ -329,6 +347,7 @@ class PhpDebugToolsJcefToolWindowPanel(
 
         selectedMethodSignature = method.targetSignature
         selectedRuntimeCommand = phpCommand
+        val executionId = beginExecution()
         executionState = FrontendExecutionState.running(
             methodSignature = method.targetSignature,
             runtimeLabel = runtimeDisplay(phpCommand),
@@ -339,26 +358,26 @@ class PhpDebugToolsJcefToolWindowPanel(
         ApplicationManager.getApplication().executeOnPooledThread {
             val startedAt = System.nanoTime()
             val result = runCatching {
-                methodInvokeExecutor.execute(
-                    MethodInvokeRequest(
-                        projectRoot = Path.of(projectBasePath),
-                        phpExecutable = phpCommand,
-                        target = method.target,
-                        argsJson = payload.argsJson.ifBlank { buildSelectionState(method).argsTemplate },
-                        requestMethod = payload.requestMethod.ifBlank { HttpRequestMethod.GET.wireValue },
-                        queryJson = requestRowsToJson(payload.queryRows.map(ExecuteRow::toDraft)),
-                        headerJson = requestRowsToJson(payload.headerRows.map(ExecuteRow::toDraft)),
-                        bodyMode = payload.bodyMode.ifBlank { RequestBodyMode.JSON.wireValue },
-                        bodyJson = when (payload.bodyMode) {
-                            RequestBodyMode.FORM_DATA.wireValue,
-                            RequestBodyMode.X_WWW_FORM_URLENCODED.wireValue -> requestRowsToJson(payload.bodyRows.map(ExecuteRow::toDraft))
-                            else -> payload.bodyJson.ifBlank { "{}" }
-                        },
+                val execution = methodInvokeExecutor.start(
+                    buildMethodInvokeRequest(
+                        projectBasePath = projectBasePath,
+                        phpCommand = phpCommand,
+                        method = method,
+                        payload = payload,
                     ),
                 )
+                if (!registerActiveExecution(executionId, execution)) {
+                    execution.cancel()
+                    throw CancellationException("请求已停止")
+                }
+                execution.await()
             }
 
             ApplicationManager.getApplication().invokeLater {
+                if (!isCurrentExecution(executionId)) {
+                    return@invokeLater
+                }
+                clearActiveExecution(executionId)
                 val elapsedMs = ((System.nanoTime() - startedAt) / 1_000_000).coerceAtLeast(1)
                 result.onSuccess { execution ->
                     currentProject.service<RecentDebugStore>().apply {
@@ -373,15 +392,107 @@ class PhpDebugToolsJcefToolWindowPanel(
                         outputText = renderExecutionResult(execution),
                     )
                 }.onFailure { throwable ->
-                    executionState = FrontendExecutionState.error(
-                        methodSignature = method.targetSignature,
-                        parameterCount = method.target.parameters.size,
-                        message = throwable.message ?: throwable::class.java.simpleName,
-                    )
+                    executionState = if (throwable is CancellationException) {
+                        FrontendExecutionState.cancelled(
+                            methodSignature = method.targetSignature,
+                            parameterCount = method.target.parameters.size,
+                        )
+                    } else {
+                        FrontendExecutionState.error(
+                            methodSignature = method.targetSignature,
+                            parameterCount = method.target.parameters.size,
+                            message = throwable.message ?: throwable::class.java.simpleName,
+                        )
+                    }
                 }
                 pushState()
             }
         }
+    }
+
+    private fun buildMethodInvokeRequest(
+        projectBasePath: String,
+        phpCommand: String,
+        method: MethodLookupItem,
+        payload: ExecutePayload,
+    ): MethodInvokeRequest {
+        return MethodInvokeRequest(
+            projectRoot = Path.of(projectBasePath),
+            phpExecutable = phpCommand,
+            target = method.target,
+            argsJson = payload.argsJson.ifBlank { buildSelectionState(method).argsTemplate },
+            requestMethod = payload.requestMethod.ifBlank { HttpRequestMethod.GET.wireValue },
+            queryJson = requestRowsToJson(payload.queryRows.map(ExecuteRow::toDraft)),
+            headerJson = requestRowsToJson(payload.headerRows.map(ExecuteRow::toDraft)),
+            bodyMode = payload.bodyMode.ifBlank { RequestBodyMode.JSON.wireValue },
+            bodyJson = when (payload.bodyMode) {
+                RequestBodyMode.FORM_DATA.wireValue,
+                RequestBodyMode.X_WWW_FORM_URLENCODED.wireValue -> requestRowsToJson(payload.bodyRows.map(ExecuteRow::toDraft))
+                else -> payload.bodyJson.ifBlank { "{}" }
+            },
+        )
+    }
+
+    private fun beginExecution(): Long {
+        var executionId = 0L
+        val previousExecution = synchronized(executionLock) {
+            activeExecutionId += 1
+            executionId = activeExecutionId
+            activeExecution.also { activeExecution = null }
+        }
+        previousExecution?.cancel()
+        return executionId
+    }
+
+    private fun registerActiveExecution(
+        executionId: Long,
+        execution: MethodInvokeExecution,
+    ): Boolean {
+        return synchronized(executionLock) {
+            if (executionId != activeExecutionId) {
+                false
+            } else {
+                activeExecution = execution
+                true
+            }
+        }
+    }
+
+    private fun isCurrentExecution(executionId: Long): Boolean =
+        synchronized(executionLock) { executionId == activeExecutionId }
+
+    private fun clearActiveExecution(executionId: Long) {
+        synchronized(executionLock) {
+            if (executionId == activeExecutionId) {
+                activeExecution = null
+            }
+        }
+    }
+
+    private fun stopActiveExecution(): Boolean {
+        val wasRunning = executionState.status == FrontendExecutionStatus.RUNNING
+        val execution = synchronized(executionLock) {
+            activeExecutionId += 1
+            activeExecution.also { activeExecution = null }
+        }
+        execution?.cancel()
+        if (!wasRunning && execution == null) {
+            return false
+        }
+        executionState = FrontendExecutionState.cancelled(
+            methodSignature = selectedMethod()?.targetSignature ?: DEFAULT_METHOD_TITLE,
+            parameterCount = selectedMethod()?.target?.parameters?.size ?: 0,
+        )
+        pushState()
+        return true
+    }
+
+    private fun cancelActiveExecutionOnly() {
+        val execution = synchronized(executionLock) {
+            activeExecutionId += 1
+            activeExecution.also { activeExecution = null }
+        }
+        execution?.cancel()
     }
 
     private fun validatePhpCommand(command: String): String? {
@@ -806,6 +917,7 @@ class PhpDebugToolsJcefToolWindowPanel(
         const val READY_QUERY_PLACEHOLDER = "__READY_QUERY__"
         const val REFRESH_QUERY_PLACEHOLDER = "__REFRESH_QUERY__"
         const val EXECUTE_QUERY_PLACEHOLDER = "__EXECUTE_QUERY__"
+        const val STOP_QUERY_PLACEHOLDER = "__STOP_QUERY__"
         const val DEFAULT_METHOD_TITLE = "\\Admin::__construct"
         const val DEFAULT_RUNTIME_COMMAND = "php"
         const val DEFAULT_RUNTIME_LABEL = "PHP 8.2 - Local"
@@ -928,6 +1040,7 @@ private enum class FrontendExecutionStatus {
     RUNNING,
     SUCCESS,
     ERROR,
+    CANCELLED,
 }
 
 private data class FrontendExecutionState(
@@ -940,6 +1053,8 @@ private data class FrontendExecutionState(
     val outputStatus: String,
     val outputRuntime: String,
     val outputText: String,
+    val consoleText: String,
+    val rawOutputText: String,
 ) {
     companion object {
         fun idle(
@@ -957,6 +1072,8 @@ private data class FrontendExecutionState(
                 outputStatus = "status: waiting",
                 outputRuntime = "18 ms",
                 outputText = preview,
+                consoleText = "暂无控制台输出。",
+                rawOutputText = preview,
             )
         }
 
@@ -975,6 +1092,8 @@ private data class FrontendExecutionState(
                 outputStatus = "status: running",
                 outputRuntime = runtimeLabel,
                 outputText = "正在执行方法直调，请稍候...",
+                consoleText = "等待目标方法输出...",
+                rawOutputText = "",
             )
         }
 
@@ -993,6 +1112,27 @@ private data class FrontendExecutionState(
                 outputStatus = "status: error",
                 outputRuntime = message,
                 outputText = message,
+                consoleText = "暂无控制台输出。",
+                rawOutputText = message,
+            )
+        }
+
+        fun cancelled(
+            methodSignature: String,
+            parameterCount: Int,
+        ): FrontendExecutionState {
+            return FrontendExecutionState(
+                status = FrontendExecutionStatus.CANCELLED,
+                title = "已停止",
+                subtitle = "已停止本次请求：$methodSignature",
+                elapsedLabel = "--",
+                stateLabel = "Stopped",
+                parameterLabel = parameterCount.toString(),
+                outputStatus = "status: stopped",
+                outputRuntime = "--",
+                outputText = "请求已停止，目标 PHP 进程已收到终止指令。",
+                consoleText = "暂无控制台输出。",
+                rawOutputText = "",
             )
         }
 
@@ -1018,6 +1158,8 @@ private data class FrontendExecutionState(
                 outputStatus = "status: ${result.status.ifBlank { if (hasError) "error" else "ok" }}",
                 outputRuntime = "${elapsedMs} ms",
                 outputText = outputText,
+                consoleText = result.consoleText.ifBlank { "暂无控制台输出。" },
+                rawOutputText = result.rawOutput.ifBlank { "暂无原始输出。" },
             )
         }
     }

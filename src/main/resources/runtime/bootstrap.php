@@ -1,5 +1,10 @@
 <?php
 
+if (function_exists('date_default_timezone_set')) {
+    // 插件运行时会在项目配置加载前引导 ThinkPHP；先设置默认时区，避免 PHP 因缺少 date.timezone 将 date() 警告升级为异常。
+    date_default_timezone_set('Asia/Shanghai');
+}
+
 if (!function_exists('php_debug_tools_fail')) {
     /**
      * 输出统一错误结构，避免运行时脚本直接抛出难以理解的错误。

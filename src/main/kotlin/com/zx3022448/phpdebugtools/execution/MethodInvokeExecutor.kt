@@ -1,5 +1,6 @@
 package com.zx3022448.phpdebugtools.execution
 
+import com.zx3022448.phpdebugtools.diagnostics.CommandResult
 import com.zx3022448.phpdebugtools.diagnostics.CommandRunner
 import com.zx3022448.phpdebugtools.methods.MethodDebugTarget
 import com.zx3022448.phpdebugtools.methods.MethodKind
@@ -15,6 +16,7 @@ data class MethodInvokeRequest(
     val phpExecutable: String,
     val target: MethodDebugTarget,
     val argsJson: String = "[]",
+    val requestPath: String = "",
     val requestMethod: String = "GET",
     val queryJson: String = "{}",
     val headerJson: String = "{}",
@@ -27,6 +29,10 @@ class MethodInvokeExecutor(
     private val runtimeInstaller: RuntimeInstaller = RuntimeInstaller(),
 ) {
     fun execute(request: MethodInvokeRequest): DebugExecutionResult {
+        return start(request).await()
+    }
+
+    fun start(request: MethodInvokeRequest): MethodInvokeExecution {
         val detection = detectProject(request.projectRoot)
         runtimeInstaller.install(
             request.projectRoot,
@@ -52,7 +58,15 @@ class MethodInvokeExecutor(
             entryScript = entryScript,
             payloadPath = payloadPath,
         )
-        return RuntimeExecutor(commandRunner).run(command, request.projectRoot)
+        val runningCommand = if (commandRunner is CancellableCommandRunner) {
+            commandRunner.start(command, request.projectRoot.toString())
+        } else {
+            BlockingRunningCommand(commandRunner, command, request.projectRoot.toString())
+        }
+        return MethodInvokeExecution(
+            runningCommand = runningCommand,
+            runtimeExecutor = RuntimeExecutor(commandRunner),
+        )
     }
 
     private fun buildPayload(request: MethodInvokeRequest): String {
@@ -61,6 +75,7 @@ class MethodInvokeExecutor(
                 classFqn = request.target.classFqn,
                 methodName = request.target.methodName,
                 isStatic = request.target.isStatic,
+                requestPath = request.requestPath,
                 requestMethod = request.requestMethod,
                 queryJson = request.queryJson,
                 headerJson = request.headerJson,
@@ -107,5 +122,29 @@ class MethodInvokeExecutor(
             }
         }
         return knownPaths
+    }
+}
+
+private class BlockingRunningCommand(
+    private val commandRunner: CommandRunner,
+    private val command: List<String>,
+    private val workingDirectory: String?,
+) : RunningCommand {
+    @Volatile
+    private var cancelled = false
+
+    override fun await(): CommandResult {
+        if (cancelled) {
+            throw java.util.concurrent.CancellationException("请求已停止")
+        }
+        val result = commandRunner.run(command, workingDirectory)
+        if (cancelled) {
+            throw java.util.concurrent.CancellationException("请求已停止")
+        }
+        return result
+    }
+
+    override fun cancel() {
+        cancelled = true
     }
 }

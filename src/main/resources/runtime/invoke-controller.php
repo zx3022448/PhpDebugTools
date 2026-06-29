@@ -28,6 +28,7 @@ $response = array(
     'result' => isset($target['result']) ? $target['result'] : null,
     'resultType' => isset($target['resultType']) ? $target['resultType'] : '',
     'resultText' => isset($target['resultText']) ? $target['resultText'] : '',
+    'consoleText' => isset($target['consoleText']) ? $target['consoleText'] : '',
     'exception' => isset($target['exception']) ? $target['exception'] : null,
     'exceptionText' => isset($target['exceptionText']) ? $target['exceptionText'] : '',
     'request' => array(
