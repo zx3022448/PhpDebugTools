@@ -46,6 +46,7 @@ class RuntimeInstaller(
 
         fun bundledTemplates(): List<RuntimeTemplate> = listOf(
             template("bootstrap.php"),
+            template("adapters/common.php"),
             template("adapters/thinkphp5.php"),
             template("adapters/thinkphp6.php"),
             template("invoke-service.php"),

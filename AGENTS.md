@@ -21,6 +21,15 @@
 ./gradlew buildPlugin
 ```
 
+## 版本管理
+1. **版本号格式**: `{主版本}.{次版本}.{修订版本}`，例如 `1.0.0`
+2. **版本号更新**: 
+   - 主版本：不兼容的 API 修改
+   - 次版本：新增功能
+   - 修订版本：向后兼容的 bug 修复
+   - 每次更新：自动更新版本号
+
+
 ## 架构
 
 本项目是一个 **JetBrains IntelliJ Platform 插件**，目标平台为 PhpStorm（以及安装了 PHP 插件的 IntelliJ IDEA）。使用 Kotlin 开发，基于 [IntelliJ Platform Gradle Plugin v2](https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html)。

@@ -6,6 +6,7 @@ data class DebugExecutionResult(
     val message: String,
     val resultText: String = "",
     val resultType: String = "",
+    val consoleText: String = "",
     val exceptionText: String = "",
     val rawOutput: String,
 )

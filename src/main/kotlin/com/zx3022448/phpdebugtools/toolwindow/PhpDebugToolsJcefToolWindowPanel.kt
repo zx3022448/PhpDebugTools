@@ -940,6 +940,8 @@ private data class FrontendExecutionState(
     val outputStatus: String,
     val outputRuntime: String,
     val outputText: String,
+    val consoleText: String,
+    val rawOutputText: String,
 ) {
     companion object {
         fun idle(
@@ -957,6 +959,8 @@ private data class FrontendExecutionState(
                 outputStatus = "status: waiting",
                 outputRuntime = "18 ms",
                 outputText = preview,
+                consoleText = "暂无控制台输出。",
+                rawOutputText = preview,
             )
         }
 
@@ -975,6 +979,8 @@ private data class FrontendExecutionState(
                 outputStatus = "status: running",
                 outputRuntime = runtimeLabel,
                 outputText = "正在执行方法直调，请稍候...",
+                consoleText = "等待目标方法输出...",
+                rawOutputText = "",
             )
         }
 
@@ -993,6 +999,8 @@ private data class FrontendExecutionState(
                 outputStatus = "status: error",
                 outputRuntime = message,
                 outputText = message,
+                consoleText = "暂无控制台输出。",
+                rawOutputText = message,
             )
         }
 
@@ -1018,6 +1026,8 @@ private data class FrontendExecutionState(
                 outputStatus = "status: ${result.status.ifBlank { if (hasError) "error" else "ok" }}",
                 outputRuntime = "${elapsedMs} ms",
                 outputText = outputText,
+                consoleText = result.consoleText.ifBlank { "暂无控制台输出。" },
+                rawOutputText = result.rawOutput.ifBlank { "暂无原始输出。" },
             )
         }
     }

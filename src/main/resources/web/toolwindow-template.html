@@ -1077,6 +1077,10 @@
         <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path>
         <path d="m21.854 2.147-10.94 10.939"></path>
       `,
+      terminal: `
+        <path d="m4 17 6-6-6-6"></path>
+        <path d="M12 19h8"></path>
+      `,
     };
 
     function renderIcon(name, size = 15, className = '') {
@@ -1966,16 +1970,22 @@
       document.getElementById('output-runtime').innerHTML = execution.outputRuntime
         ? `${renderIcon('clock3', 12)}${escapeHtml(execution.outputRuntime)}`
         : '';
-      document.getElementById('output-text').textContent = store.activeOutputTab === 'result'
-        ? (execution.outputText || '')
-        : buildPayloadPreview();
+      const outputByTab = {
+        result: execution.outputText || '',
+        console: execution.consoleText || '暂无控制台输出。',
+        payload: buildPayloadPreview(),
+        raw: execution.rawOutputText || ''
+      };
+      document.getElementById('output-text').textContent = outputByTab[store.activeOutputTab] || outputByTab.result;
     }
 
     function renderOutputTabs() {
       const outputTabs = document.getElementById('output-tabs');
       outputTabs.innerHTML = `
         <button class="output-tab ${store.activeOutputTab === 'result' ? 'active' : ''}" data-output-tab="result" type="button">${renderIcon('fileBracesCorner', 14)}执行结果</button>
+        <button class="output-tab ${store.activeOutputTab === 'console' ? 'active' : ''}" data-output-tab="console" type="button">${renderIcon('terminal', 14)}控制台</button>
         <button class="output-tab ${store.activeOutputTab === 'payload' ? 'active' : ''}" data-output-tab="payload" type="button">${renderIcon('codeXml', 14)}参数</button>
+        <button class="output-tab ${store.activeOutputTab === 'raw' ? 'active' : ''}" data-output-tab="raw" type="button">${renderIcon('codeXml', 14)}原始输出</button>
       `;
       outputTabs.querySelectorAll('[data-output-tab]').forEach(tab => {
         tab.addEventListener('click', () => {

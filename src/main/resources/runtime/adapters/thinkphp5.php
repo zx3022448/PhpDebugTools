@@ -1,7 +1,6 @@
 <?php
 
-// 共享 thinkphp6 的实现，仅覆盖框架名以保持适配器独立性
-require __DIR__ . '/thinkphp6.php';
+require_once __DIR__ . '/common.php';
 
 return array(
     'name' => 'thinkphp5',
