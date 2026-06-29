@@ -1,6 +1,7 @@
 package com.zx3022448.phpdebugtools.execution
 
 import com.zx3022448.phpdebugtools.diagnostics.CommandRunner
+import com.zx3022448.phpdebugtools.diagnostics.CommandResult
 import java.nio.file.Path
 
 class RuntimeExecutor(
@@ -8,6 +9,14 @@ class RuntimeExecutor(
 ) {
     fun run(command: List<String>, projectRoot: Path): DebugExecutionResult {
         val commandResult = commandRunner.run(command, projectRoot.toString())
+        return parseCommandResult(commandResult)
+    }
+
+    fun run(runningCommand: RunningCommand): DebugExecutionResult {
+        return parseCommandResult(runningCommand.await())
+    }
+
+    private fun parseCommandResult(commandResult: CommandResult): DebugExecutionResult {
         val stdoutResult = parseStructuredResult(commandResult.stdout, commandResult.stderr)
         val stderrResult = parseStructuredResult(commandResult.stderr, commandResult.stdout)
 

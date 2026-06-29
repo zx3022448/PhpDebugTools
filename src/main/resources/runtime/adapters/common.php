@@ -235,6 +235,480 @@ if (!function_exists('php_debug_tools_prepare_superglobals')) {
     }
 }
 
+if (!function_exists('php_debug_tools_read_runtime_config')) {
+    /**
+     * 读取插件写入的运行时配置。
+     *
+     * @return array<string, mixed>
+     */
+    function php_debug_tools_read_runtime_config()
+    {
+        $configPath = dirname(__DIR__) . '/runtime-config.json';
+        $content = is_file($configPath) ? file_get_contents($configPath) : false;
+        $config = json_decode($content !== false ? $content : '', true);
+        return is_array($config) ? $config : array();
+    }
+}
+
+if (!function_exists('php_debug_tools_project_root')) {
+    /**
+     * 获取目标 PHP 项目根目录。
+     *
+     * @return string
+     */
+    function php_debug_tools_project_root()
+    {
+        return dirname(dirname(__DIR__));
+    }
+}
+
+if (!function_exists('php_debug_tools_normalize_entry_file')) {
+    /**
+     * 规范化入口文件相对路径，避免运行时配置指向项目外部文件。
+     *
+     * @param mixed $entryFile 运行时配置中的入口文件
+     * @return string
+     */
+    function php_debug_tools_normalize_entry_file($entryFile)
+    {
+        $entry = str_replace('\\', '/', (string) $entryFile);
+        $entry = ltrim($entry, '/');
+        if ($entry === '' || strpos($entry, '..') !== false) {
+            return 'public/index.php';
+        }
+        return $entry;
+    }
+}
+
+if (!function_exists('php_debug_tools_controller_path_parts')) {
+    /**
+     * 根据控制器类名和方法名推导 ThinkPHP 入口可识别的 PATH_INFO。
+     *
+     * @param string $class 控制器完整类名
+     * @param string $method 控制器方法名
+     * @return array<int, string>
+     */
+    function php_debug_tools_controller_path_parts($class, $method)
+    {
+        $normalizedClass = trim($class, '\\');
+        $parts = $normalizedClass === '' ? array() : explode('\\', $normalizedClass);
+        $controllerIndex = -1;
+
+        foreach ($parts as $index => $part) {
+            if (strtolower($part) === 'controller') {
+                $controllerIndex = $index;
+                break;
+            }
+        }
+
+        $pathParts = array();
+        if ($controllerIndex > 0) {
+            $module = (string) $parts[$controllerIndex - 1];
+            if ($module !== '' && strtolower($module) !== 'app') {
+                $pathParts[] = $module;
+            }
+        }
+
+        $controllerParts = $controllerIndex >= 0
+            ? array_slice($parts, $controllerIndex + 1)
+            : (empty($parts) ? array() : array(end($parts)));
+        foreach ($controllerParts as $index => $part) {
+            $controllerPart = $index === count($controllerParts) - 1
+                ? preg_replace('/Controller$/', '', $part)
+                : $part;
+            if ($controllerPart !== '') {
+                $pathParts[] = $controllerPart;
+            }
+        }
+        if ($method !== '') {
+            $pathParts[] = $method;
+        }
+
+        return array_map('strtolower', $pathParts);
+    }
+}
+
+if (!function_exists('php_debug_tools_normalize_request_path')) {
+    /**
+     * 规范化用户填写的真实访问路径。
+     *
+     * @param mixed $path 请求路径
+     * @return string
+     */
+    function php_debug_tools_normalize_request_path($path)
+    {
+        $normalized = trim((string) $path);
+        if ($normalized === '') {
+            return '';
+        }
+        $normalized = '/' . ltrim($normalized, '/');
+        $queryIndex = strpos($normalized, '?');
+        if ($queryIndex !== false) {
+            $normalized = substr($normalized, 0, $queryIndex);
+        }
+        return $normalized === '' ? '' : $normalized;
+    }
+}
+
+if (!function_exists('php_debug_tools_payload_request_path')) {
+    /**
+     * 从 payload 中读取真实访问路径。
+     *
+     * @param array<string, mixed> $payload 方法调试 payload
+     * @return string
+     */
+    function php_debug_tools_payload_request_path($payload)
+    {
+        $request = isset($payload['request']) && is_array($payload['request'])
+            ? $payload['request']
+            : array();
+        return php_debug_tools_normalize_request_path(isset($request['path']) ? $request['path'] : '');
+    }
+}
+
+if (!function_exists('php_debug_tools_route_files')) {
+    /**
+     * 查找常见 ThinkPHP 路由文件。
+     *
+     * @param string $projectRoot 项目根目录
+     * @return array<int, string>
+     */
+    function php_debug_tools_route_files($projectRoot)
+    {
+        $files = array();
+        $candidates = array(
+            $projectRoot . '/route.php',
+            $projectRoot . '/application/route.php',
+            $projectRoot . '/config/route.php',
+        );
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                $files[] = $candidate;
+            }
+        }
+
+        $routeDirectory = $projectRoot . '/route';
+        if (is_dir($routeDirectory)) {
+            $routeFiles = glob($routeDirectory . '/*.php');
+            if (is_array($routeFiles)) {
+                foreach ($routeFiles as $routeFile) {
+                    if (is_file($routeFile)) {
+                        $files[] = $routeFile;
+                    }
+                }
+            }
+        }
+
+        return array_values(array_unique($files));
+    }
+}
+
+if (!function_exists('php_debug_tools_normalize_route_token')) {
+    /**
+     * 规范化路由目标，便于把 route.php 中的写法和控制器类名对齐。
+     *
+     * @param string $value 路由目标
+     * @return string
+     */
+    function php_debug_tools_normalize_route_token($value)
+    {
+        $normalized = strtolower(trim($value));
+        $normalized = str_replace(array('\\\\', '\\', '@', '::', '.', '|'), '/', $normalized);
+        $normalized = preg_replace('/\?.*$/', '', $normalized);
+        $normalized = trim($normalized, " \t\n\r\0\x0B/");
+        $segments = array();
+        foreach (explode('/', $normalized) as $segment) {
+            if ($segment === '' || $segment === 'app' || $segment === 'application' || $segment === 'controller') {
+                continue;
+            }
+            $segments[] = preg_replace('/controller$/', '', $segment);
+        }
+        return implode('/', $segments);
+    }
+}
+
+if (!function_exists('php_debug_tools_controller_route_targets')) {
+    /**
+     * 为当前控制器方法生成可匹配 route.php 目标的候选值。
+     *
+     * @param string $class 控制器完整类名
+     * @param string $method 控制器方法名
+     * @return array<int, string>
+     */
+    function php_debug_tools_controller_route_targets($class, $method)
+    {
+        $pathParts = php_debug_tools_controller_path_parts($class, $method);
+        $candidates = array(implode('/', $pathParts));
+
+        if (count($pathParts) > 2) {
+            $candidates[] = implode('/', array_slice($pathParts, 1));
+        }
+        if (count($pathParts) > 1) {
+            $candidates[] = implode('/', array_slice($pathParts, -2));
+        }
+
+        $normalizedClass = php_debug_tools_normalize_route_token($class . '/' . $method);
+        if ($normalizedClass !== '') {
+            $candidates[] = $normalizedClass;
+        }
+
+        return array_values(array_unique(array_filter(array_map('php_debug_tools_normalize_route_token', $candidates))));
+    }
+}
+
+if (!function_exists('php_debug_tools_route_target_matches')) {
+    /**
+     * 判断 route.php 中的目标是否指向当前控制器方法。
+     *
+     * @param string $target 路由目标
+     * @param array<int, string> $candidates 控制器目标候选
+     * @return bool
+     */
+    function php_debug_tools_route_target_matches($target, $candidates)
+    {
+        $normalizedTarget = php_debug_tools_normalize_route_token($target);
+        foreach ($candidates as $candidate) {
+            if ($normalizedTarget === $candidate || substr($normalizedTarget, -strlen($candidate)) === $candidate) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+if (!function_exists('php_debug_tools_route_param_values')) {
+    /**
+     * 从 Query、Body 和 args 中提取路由参数示例值。
+     *
+     * @param array<string, mixed> $payload 方法调试 payload
+     * @return array<string, mixed>
+     */
+    function php_debug_tools_route_param_values($payload)
+    {
+        $request = php_debug_tools_extract_runtime_request($payload);
+        $values = array_merge($request['query'], $request['body']);
+        $args = isset($payload['args']) && is_array($payload['args']) ? $payload['args'] : array();
+        foreach ($args as $index => $value) {
+            $values['arg' . $index] = $value;
+        }
+        return $values;
+    }
+}
+
+if (!function_exists('php_debug_tools_materialize_route_path')) {
+    /**
+     * 将 route.php 中的参数化路由转换成可请求的 PATH_INFO。
+     *
+     * @param string $routePath route.php 中声明的路由
+     * @param array<string, mixed> $payload 方法调试 payload
+     * @return string
+     */
+    function php_debug_tools_materialize_route_path($routePath, $payload)
+    {
+        $path = trim((string) $routePath);
+        $path = preg_replace('/^\[([^\]]+)\]$/', '$1', $path);
+        $values = php_debug_tools_route_param_values($payload);
+        $fallbackIndex = 1;
+        $replaceParam = function ($matches) use ($values, &$fallbackIndex) {
+            $name = isset($matches[1]) ? trim($matches[1], ':?<>[]') : '';
+            if ($name !== '' && isset($values[$name]) && is_scalar($values[$name])) {
+                return rawurlencode((string) $values[$name]);
+            }
+            return (string) $fallbackIndex++;
+        };
+
+        $path = preg_replace_callback('/<([A-Za-z_][A-Za-z0-9_]*\??)>/', $replaceParam, $path);
+        $path = preg_replace_callback('/:([A-Za-z_][A-Za-z0-9_]*)/', $replaceParam, $path);
+        $path = str_replace(array('[', ']'), '', $path);
+
+        return php_debug_tools_normalize_request_path($path);
+    }
+}
+
+if (!function_exists('php_debug_tools_collect_route_definitions')) {
+    /**
+     * 从 route.php 文本中静态提取常见路由定义。
+     *
+     * @param string $content route.php 内容
+     * @return array<int, array<string, string>>
+     */
+    function php_debug_tools_collect_route_definitions($content)
+    {
+        $definitions = array();
+        $groupStack = array('');
+        $lines = preg_split('/\R/', $content);
+        if (!is_array($lines)) {
+            $lines = array($content);
+        }
+
+        foreach ($lines as $line) {
+            if (preg_match('/Route::group\s*\(\s*([\'"])(.*?)\1/i', $line, $groupMatch)) {
+                $prefix = trim($groupMatch[2], '/');
+                $parent = end($groupStack);
+                $groupStack[] = trim($parent . '/' . $prefix, '/');
+            }
+
+            if (preg_match_all('/Route::(?:rule|get|post|put|patch|delete|any)\s*\(\s*([\'"])(.*?)\1\s*,\s*([\'"])(.*?)\3/i', $line, $matches, PREG_SET_ORDER)) {
+                foreach ($matches as $match) {
+                    $prefix = end($groupStack);
+                    $definitions[] = array(
+                        'path' => trim($prefix . '/' . trim($match[2], '/'), '/'),
+                        'target' => $match[4],
+                    );
+                }
+            }
+
+            if (preg_match_all('/([\'"])([^\'"]+)\1\s*=>\s*([\'"])([^\'"]+)\3/', $line, $matches, PREG_SET_ORDER)) {
+                foreach ($matches as $match) {
+                    if ($match[2] === '__pattern__' || $match[2] === '__domain__') {
+                        continue;
+                    }
+                    $definitions[] = array(
+                        'path' => trim($match[2], '/'),
+                        'target' => $match[4],
+                    );
+                }
+            }
+
+            if (count($groupStack) > 1 && preg_match('/^\s*\}\s*\)?\s*;?\s*$/', $line)) {
+                array_pop($groupStack);
+            }
+        }
+
+        return $definitions;
+    }
+}
+
+if (!function_exists('php_debug_tools_route_file_request_path')) {
+    /**
+     * 通过 route.php 查找当前控制器方法对应的真实路由。
+     *
+     * @param array<string, mixed> $payload 方法调试 payload
+     * @return string
+     */
+    function php_debug_tools_route_file_request_path($payload)
+    {
+        $className = isset($payload['class']) ? (string) $payload['class'] : '';
+        $methodName = isset($payload['method']) ? (string) $payload['method'] : '';
+        $candidates = php_debug_tools_controller_route_targets($className, $methodName);
+        if (empty($candidates)) {
+            return '';
+        }
+
+        foreach (php_debug_tools_route_files(php_debug_tools_project_root()) as $routeFile) {
+            $content = file_get_contents($routeFile);
+            if ($content === false) {
+                continue;
+            }
+            foreach (php_debug_tools_collect_route_definitions($content) as $definition) {
+                if (php_debug_tools_route_target_matches($definition['target'], $candidates)) {
+                    return php_debug_tools_materialize_route_path($definition['path'], $payload);
+                }
+            }
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('php_debug_tools_prepare_entry_server_context')) {
+    /**
+     * 为 public/index.php 准备接近 Web 请求的 CLI 环境变量。
+     *
+     * @param array<string, mixed> $payload 方法调试 payload
+     * @param string $entryFile 入口文件相对路径
+     * @return array<string, string>
+     */
+    function php_debug_tools_prepare_entry_server_context($payload, $entryFile)
+    {
+        $request = php_debug_tools_extract_runtime_request($payload);
+        $className = isset($payload['class']) ? (string) $payload['class'] : '';
+        $methodName = isset($payload['method']) ? (string) $payload['method'] : '';
+        $pathInfo = php_debug_tools_payload_request_path($payload);
+        if ($pathInfo === '') {
+            $pathInfo = php_debug_tools_route_file_request_path($payload);
+        }
+        if ($pathInfo === '') {
+            $pathInfo = '/' . implode('/', php_debug_tools_controller_path_parts($className, $methodName));
+        }
+        $queryString = !empty($request['query']) ? http_build_query($request['query']) : '';
+        $requestUri = $pathInfo . ($queryString !== '' ? '?' . $queryString : '');
+        $projectRoot = php_debug_tools_project_root();
+        $entryPath = $projectRoot . '/' . $entryFile;
+        $scriptName = '/' . basename($entryFile);
+
+        php_debug_tools_prepare_superglobals($payload);
+        $_SERVER['DOCUMENT_ROOT'] = dirname($entryPath);
+        $_SERVER['SCRIPT_FILENAME'] = $entryPath;
+        $_SERVER['SCRIPT_NAME'] = $scriptName;
+        $_SERVER['PHP_SELF'] = $scriptName;
+        $_SERVER['REQUEST_URI'] = $requestUri;
+        $_SERVER['PATH_INFO'] = $pathInfo;
+        $_SERVER['ORIG_PATH_INFO'] = $pathInfo;
+        $_SERVER['QUERY_STRING'] = $queryString;
+        // ThinkPHP5 在 CLI 模式会用 argv[1] 覆盖 PATH_INFO，必须同步为真实路由。
+        $_SERVER['argv'] = isset($_SERVER['argv']) && is_array($_SERVER['argv']) ? $_SERVER['argv'] : array($entryPath);
+        $_SERVER['argv'][1] = ltrim($pathInfo, '/');
+        $_SERVER['argc'] = max(2, isset($_SERVER['argc']) ? (int) $_SERVER['argc'] : 2);
+        $GLOBALS['argv'] = $_SERVER['argv'];
+        $GLOBALS['argc'] = $_SERVER['argc'];
+        $_SERVER['SERVER_NAME'] = isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'localhost';
+        $_SERVER['HTTP_HOST'] = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+        $_SERVER['SERVER_PORT'] = isset($_SERVER['SERVER_PORT']) ? $_SERVER['SERVER_PORT'] : '80';
+        $_SERVER['SERVER_PROTOCOL'] = isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.1';
+        $_SERVER['REMOTE_ADDR'] = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '127.0.0.1';
+
+        return array(
+            'pathInfo' => $pathInfo,
+            'requestUri' => $requestUri,
+            'entryPath' => $entryPath,
+        );
+    }
+}
+
+if (!function_exists('php_debug_tools_dispatch_controller_entry')) {
+    /**
+     * 控制器调试走项目真实入口，确保 ThinkPHP 按正常流程加载 env、配置、路由和中间件。
+     *
+     * @param array<string, mixed> $payload 方法调试 payload
+     * @return array<string, mixed>
+     */
+    function php_debug_tools_dispatch_controller_entry($payload)
+    {
+        $config = php_debug_tools_read_runtime_config();
+        $entryFile = php_debug_tools_normalize_entry_file(isset($config['entryFile']) ? $config['entryFile'] : 'public/index.php');
+        $projectRoot = php_debug_tools_project_root();
+        $entryPath = $projectRoot . '/' . $entryFile;
+
+        if (!is_file($entryPath)) {
+            throw new \RuntimeException('Project entry file not found: ' . $entryFile);
+        }
+
+        $serverContext = php_debug_tools_prepare_entry_server_context($payload, $entryFile);
+        $previousCwd = getcwd();
+        chdir($projectRoot);
+
+        try {
+            require $entryPath;
+        } finally {
+            if ($previousCwd !== false) {
+                chdir($previousCwd);
+            }
+        }
+
+        return array(
+            'status' => 'ok',
+            'stage' => 'target',
+            'message' => 'controller request dispatched through ' . $entryFile,
+            'result' => null,
+            'resultType' => 'response',
+            'resultText' => 'Controller request dispatched: ' . $serverContext['requestUri'],
+            'exception' => null,
+            'exceptionText' => '',
+        );
+    }
+}
+
 if (!function_exists('php_debug_tools_safely_invoke')) {
     /**
      * 兼容 PHP 5.6 与 7.0+ 的统一调用入口。
@@ -850,6 +1324,10 @@ if (!function_exists('php_debug_tools_call_target_method')) {
         // 规范化类名：去掉前导 \，避免部分 autoload 实现无法识别
         $normalizedClass = ltrim($className, '\\');
 
+        if ($kind === 'controller') {
+            return php_debug_tools_dispatch_controller_entry($payload);
+        }
+
         // 加载项目 Composer autoload，让框架类和服务类可被发现
         php_debug_tools_ensure_autoload();
 
@@ -859,31 +1337,6 @@ if (!function_exists('php_debug_tools_call_target_method')) {
 
         if (!method_exists($normalizedClass, $methodName)) {
             throw new \RuntimeException('Target method not found: ' . $className . '::' . $methodName);
-        }
-
-        if ($kind === 'controller') {
-            php_debug_tools_prepare_superglobals($payload);
-            $requestObj = php_debug_tools_create_request_object();
-            if ($requestObj === null && function_exists('request')) {
-                $requestObj = request();
-            }
-            if ($requestObj === null) {
-                $requestObj = php_debug_tools_create_fallback_request();
-            }
-            php_debug_tools_apply_request_context(
-                $requestObj,
-                php_debug_tools_build_route_context($normalizedClass, $methodName, $payload)
-            );
-            php_debug_tools_bind_request_to_container($requestObj);
-
-            if (empty($args)) {
-                $request = php_debug_tools_extract_runtime_request($payload);
-                $args = array_merge($request['query'], $request['body']);
-                if (!is_array($args)) {
-                    $args = array();
-                }
-                $args = array_values($args);
-            }
         }
 
         $reflectionMethod = new \ReflectionMethod($normalizedClass, $methodName);

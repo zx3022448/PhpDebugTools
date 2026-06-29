@@ -336,7 +336,12 @@
 
     .send-btn:disabled {
       opacity: .55;
-      cursor: progress;
+      cursor: not-allowed;
+    }
+
+    .send-btn.stop {
+      background: linear-gradient(180deg, #ff7575 0%, #e84d4d 100%);
+      box-shadow: 0 12px 20px rgba(255,107,107,.24);
     }
 
     .tabs, .subtabs, .body-mode-tabs {
@@ -1077,6 +1082,9 @@
         <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path>
         <path d="m21.854 2.147-10.94 10.939"></path>
       `,
+      square: `
+        <rect width="16" height="16" x="4" y="4" rx="2"></rect>
+      `,
       terminal: `
         <path d="m4 17 6-6-6-6"></path>
         <path d="M12 19h8"></path>
@@ -1112,6 +1120,14 @@
         const onSuccess = response => resolve(response || "");
         const onError = (code, message) => reject(new Error(message || String(code)));
         __EXECUTE_QUERY__
+      });
+    }
+
+    function invokeStop(payload) {
+      return new Promise((resolve, reject) => {
+        const onSuccess = response => resolve(response || "");
+        const onError = (code, message) => reject(new Error(message || String(code)));
+        __STOP_QUERY__
       });
     }
 
@@ -1394,8 +1410,13 @@
         requestMethodContainer.innerHTML = '';
       }
 
-      executeButton.disabled = !currentMethod() || (store.data.execution && store.data.execution.status === 'RUNNING');
-      executeButton.onclick = triggerExecute;
+      const isRunning = store.data.execution && store.data.execution.status === 'RUNNING';
+      executeButton.disabled = !currentMethod() && !isRunning;
+      executeButton.classList.toggle('stop', isRunning);
+      executeButton.setAttribute('aria-label', isRunning ? '停止请求' : '发送请求');
+      executeButton.title = isRunning ? '停止请求' : '发送请求';
+      executeButton.innerHTML = renderIcon(isRunning ? 'square' : 'send', 16);
+      executeButton.onclick = isRunning ? triggerStop : triggerExecute;
     }
 
     function bindMethodInput() {
@@ -2022,6 +2043,14 @@
       };
       try {
         await invokeExecute(payload);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    async function triggerStop() {
+      try {
+        await invokeStop({ source: 'execute-button' });
       } catch (error) {
         console.error(error);
       }
